@@ -1,0 +1,8 @@
+pandas
+jupyter
+plotly
+ipykernel
+nbformat
+sklearn
+statsmodels
+kaleido
