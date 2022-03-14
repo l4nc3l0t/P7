@@ -1,6 +1,7 @@
 .vscode
 .env
 *.csv
+*.ipynb
 Figures/
 Tableaux/
 Images*/
