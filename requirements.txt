@@ -6,3 +6,6 @@ nbformat
 sklearn
 statsmodels
 kaleido
+imblearn
+xgboost
+lightgbm
