@@ -436,9 +436,9 @@ fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/CurvesROClogreg.pdf')
 # %%
-# utilisation d'un échantillon de 1000 clients
+# utilisation d'un échantillon de 4000 clients
 X_train, X_test, y_train, y_test = preprocessing(
-    app_train.sample(1000, random_state=0), app_test)
+    app_train.sample(4000, random_state=0), app_test)
 # %%
 sampler = [
     RandomUnderSampler(random_state=0),
@@ -459,9 +459,8 @@ param_grid = [{
 }, {
     'sampling': sampler,
     'classifier': [GradientBoostingClassifier(random_state=0)],
-    'classifier__loss': ['deviance', 'exponential'],
-    'classifier__n_estimators': [100, 500, 1000],
-    'classifier__max_depth': [2, 4, 6]
+    'classifier__loss': ['deviance','exponential'],
+    'classifier__n_estimators': [100, 500, 1000]
 }, {
     'sampling':
     sampler,
@@ -483,67 +482,223 @@ param_grid = [{
 
 classifier = Pipeline([('sampling', 'passthrough'),
                        ('classifier', 'passthrough')])
-grid = GridSearchCV(classifier,
-                    param_grid,
-                    scoring={
-                        'AUC': 'roc_auc_ovo_weighted',
-                        'Accuracy': 'balanced_accuracy',
-                        'Precision': 'precision_weighted',
-                        'Recall': 'recall_weighted',
-                        'F1': 'f1_weighted'
+
+
+def GridPlot(classifier, param_grid, train, test, data_type=str, sample=None):
+
+    if sample == None:
+        X_train, X_test, y_train, y_test = preprocessing(train, test)
+    else:
+        X_train, X_test, y_train, y_test = preprocessing(
+            train.sample(sample, random_state=0), test)
+
+    Scores = pd.DataFrame()
+    RocCurve = pd.DataFrame()
+    feature_importance = pd.DataFrame()
+    idx = 0
+    IDX = 0
+
+    Rocfig = go.Figure()
+    Rocfig.add_shape(type='line',
+                     line=dict(dash='dash'),
+                     x0=0,
+                     x1=1,
+                     y0=0,
+                     y1=1)
+
+    for param_grid in param_grid:
+        grid = GridSearchCV(classifier,
+                            param_grid,
+                            scoring={
+                                'AUC': 'roc_auc_ovo_weighted',
+                                'Accuracy': 'balanced_accuracy',
+                                'Precision': 'precision_weighted',
+                                'Recall': 'recall_weighted',
+                                'F1': 'f1_weighted'
+                            },
+                            refit='AUC',
+                            n_jobs=-1)
+        grid.fit(X_train, y_train)
+        grid_pred = grid.predict(X_test)
+        grid_proba = grid.predict_proba(X_test)
+        print(grid.best_estimator_)
+        print('Accuracy : {}'.format(
+            grid.cv_results_['mean_test_Accuracy'][grid.best_index_]))
+        print('AUC : {}'.format(
+            grid.cv_results_['mean_test_AUC'][grid.best_index_]))
+        print('Precision : {}'.format(
+            grid.cv_results_['mean_test_Precision'][grid.best_index_]))
+        print('Recall : {}'.format(
+            grid.cv_results_['mean_test_Recall'][grid.best_index_]))
+        print('F1 : {}'.format(
+            grid.cv_results_['mean_test_F1'][grid.best_index_]))
+
+        fpr, tpr, thresholds = roc_curve(y_test, grid_proba[:, 1])
+        name = '{}<br>(AUC={})'.format(
+            str(grid.best_params_['classifier']).split('(')[0],
+            round(auc(fpr, tpr), 4))
+        Rocfig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines'))
+
+        RocCurve = pd.concat([
+            RocCurve,
+            pd.DataFrame({
+                'Modèle':
+                str(grid.best_params_['classifier']).split('(')[0],
+                'FPR':
+                fpr,
+                'TPR':
+                tpr
+            })
+        ])
+        RocCurve = RocCurve.reset_index().drop(columns={'index'})
+
+        Scores = pd.concat([
+            Scores,
+            pd.DataFrame(
+                {
+                    'Modèle':
+                    str(grid.best_params_['classifier']).split('(')[0],
+                    'Accuracy':
+                    grid.cv_results_['mean_test_Accuracy'][grid.best_index_],
+                    'AUC':
+                    grid.cv_results_['mean_test_AUC'][grid.best_index_],
+                    'Precision':
+                    grid.cv_results_['mean_test_Precision'][grid.best_index_],
+                    'Recall':
+                    grid.cv_results_['mean_test_Recall'][grid.best_index_],
+                    'F1':
+                    grid.cv_results_['mean_test_F1'][grid.best_index_]
+                },
+                index=[idx])
+        ])
+        idx += 1
+
+        if str(grid.best_params_['classifier']).split(
+                '(')[0] == 'LogisticRegression':
+            feature_importance = pd.concat([
+                feature_importance,
+                pd.DataFrame(
+                    {
+                        'Modèle':
+                        str(grid.best_params_['classifier']).split('(')[0],
+                        'Feature':
+                        test.columns,
+                        'value':
+                        grid.best_estimator_.named_steps['classifier'].coef_[0]
                     },
-                    refit='AUC',
-                    n_jobs=-1)
-grid.fit(X_train, y_train)
-grid_pred = grid.predict(X_test)
-grid_proba = grid.predict_proba(X_test)
-print('Accuracy : {}'.format(
-    grid.cv_results_['mean_test_Accuracy'][grid.best_index_]))
-print('AUC : {}'.format(
-    grid.cv_results_['mean_test_AUC'][grid.best_index_]))
-print('Precision : {}'.format(
-    grid.cv_results_['mean_test_Precision'][grid.best_index_]))
-print('Recall : {}'.format(
-    grid.cv_results_['mean_test_Recall'][grid.best_index_]))
-print('F1 : {}'.format(
-    grid.cv_results_['mean_test_F1'][grid.best_index_]))
-# %%
-fpr, tpr, thresholds = roc_curve(y_test, grid_proba[:, 1])
-# %%
-fig = px.area(x=fpr,
-              y=tpr,
-              title='{}/{}<br>ROC Curve (AUC={})'.format(
-                  str(grid.best_params_['classifier']).split('(')[0],
-                  str(grid.best_params_['sampling']).split('(')[0],
-                  round(auc(fpr, tpr), 4)),
-              labels=dict(x='False Positive Rate', y='True Positive Rate'))
-fig.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
+                    index=pd.RangeIndex(IDX, len(test.columns)))
+            ])
+            IDX += len(test.columns)
+        else:
+            feature_importance = pd.concat([
+                feature_importance,
+                pd.DataFrame(
+                    {
+                        'Modèle':
+                        str(grid.best_params_['classifier']).split('(')[0],
+                        'Feature':
+                        test.columns,
+                        'value':
+                        grid.best_estimator_.named_steps['classifier'].
+                        feature_importances_
+                    },
+                    index=pd.RangeIndex(IDX, len(test.columns)))
+            ])
+            IDX += len(test.columns)
+
+        # matrice de confusion
+        CM = confusion_matrix(y_test, grid_pred)
+        CMfig = px.imshow(
+            CM,
+            x=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+            y=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+            text_auto=True,
+            color_continuous_scale='balance',
+            labels={
+                'x': 'Catégorie prédite',
+                'y': 'Catégorie réelle',
+                'color': 'Nb clients'
+            },
+            title=
+            'Matrice de confusion de la classification<br>par {}<br>et échantillonnage par {}'
+            .format(
+                str(grid.best_params_['classifier']).split('(')[0],
+                str(grid.best_params_['sampling']).split('(')[0]))
+
+        CMfig.update_layout(plot_bgcolor='white')
+        CMfig.update_coloraxes(showscale=False)
+        CMfig.show(renderer='notebook')
+        if write_data is True:
+            CMfig.write_image('./Figures/CM{}Grid{}.pdf'.format(
+                data_type,
+                str(grid.best_params_['classifier']).split('(')[0]))
+
+    Rocfig.update_layout(xaxis_title='False Positive Rate',
+                         yaxis_title='True Positive Rate')
+    Rocfig.show(renderer='notebook')
+    if write_data is True:
+        Rocfig.write_image(
+            './Figures/CurvesROCGridBest_{}.pdf'.format(data_type))
+
+    return Scores, feature_importance
+
+
+# %%
+Scores_base, ImpFeat_base = GridPlot(classifier, param_grid, app_train,
+                                     app_test, 'base', 4000)
+# %%
+ScoresM_base = Scores_base.melt('Modèle').rename(columns={'variable': 'Score'})
+fig = px.bar(
+    ScoresM_base,
+    x='Score',
+    y='value',
+    color='Modèle',
+    barmode='group',
+    title='Scores pour les différents modèles<br>sans polynomial features')
 fig.show(renderer='notebook')
 if write_data is True:
-    fig.write_image('./Figures/CurveROCGridBest.pdf')
-# %%
-# matrice de confusion
-CM = confusion_matrix(y_test, grid_pred)
-CMfig = px.imshow(
-    CM,
-    x=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
-    y=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
-    text_auto=True,
-    color_continuous_scale='balance',
-    labels={
-        'x': 'Catégorie prédite',
-        'y': 'Catégorie réelle',
-        'color': 'Nb clients'
-    },
-    title=
-    'Matrice de confusion de la classification<br>par {}<br>et échantillonnage par {}'
-    .format(
-        str(grid.best_params_['classifier']).split('(')[0],
-        str(grid.best_params_['sampling']).split('(')[0]))
-
-CMfig.update_layout(plot_bgcolor='white')
-CMfig.update_coloraxes(showscale=False)
-CMfig.show(renderer='notebook')
+    fig.write_image('./Figures/ScoresGrid_base.pdf')
+# %%
+PlotDF_ImpFeat_base = ImpFeat_base.sort_values(
+    by='value', ascending=False).groupby('Modèle').head(10)
+fig = px.bar(PlotDF_ImpFeat_base,
+             x='value',
+             y='Feature',
+             orientation='h',
+             facet_row='Modèle',
+             height=1000)
+fig.update_yaxes(matches=None)
+fig.update_xaxes(matches=None, showticklabels=True)
+fig.show(renderer='notebook')
 if write_data is True:
-    CMfig.write_image('./Figures/CMGridBest.pdf')
+    fig.write_image('./Figures/BestFeatGrid_base.pdf')
+# %%
+Scores_FE, ImpFeat_FE = GridPlot(classifier, param_grid, X_train, X_test,
+                                 y_train, y_test, 'featEng')
+# %%
+ScoresM_FE = Scores_FE.melt('Modèle').rename(columns={'variable': 'Score'})
+fig = px.bar(
+    ScoresM_base,
+    x='Score',
+    y='value',
+    color='Modèle',
+    barmode='group',
+    title='Scores pour les différents modèles<br>avec polynomial features')
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/ScoresGrid_FE.pdf')
+# %%
+PlotDF_ImpFeat_FE = ImpFeat_FE.sort_values(
+    by='value', ascending=False).groupby('Modèle').head(10)
+fig = px.bar(PlotDF_ImpFeat_FE,
+             x='value',
+             y='Feature',
+             orientation='h',
+             facet_row='Modèle',
+             height=1000)
+fig.update_yaxes(matches=None)
+fig.update_xaxes(matches=None, showticklabels=True)
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/BestFeatGrid_FE.pdf')
 # %%
