@@ -5,6 +5,7 @@
 Figures/
 Tableaux/
 Images*/
+LightGBM/
 *.synctex.gz
 __pycache__/
 *.aux
