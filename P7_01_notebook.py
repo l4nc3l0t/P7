@@ -315,12 +315,12 @@ trainfeat_transDF, testfeat_transDF = create_PolFeat(trainfeatures,
 trainfeat_transDF = trainfeat_transDF.join(
     app_train.drop(
         columns={'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-                 }))
+                 }).set_index('SK_ID_CURR'))
 
 testfeat_transDF = testfeat_transDF.join(
     app_test.drop(
         columns={'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-                 }))
+                 }).set_index('SK_ID_CURR'))
 # %%
 trainfeat_corr = trainfeat_transDF.corr().TARGET
 print('Meilleures correlations positives :\n',
@@ -762,10 +762,8 @@ if write_data is True:
 # %%
 Scores_FE, ImpFeat_FE = GridPlot(classifier,
                                  param_grid,
-                                 X_train,
-                                 X_test,
-                                 y_train,
-                                 y_test,
+                                 trainfeat_transDF,
+                                 testfeat_transDF,
                                  data_type='featEng',
                                  sample=40000,
                                  imputerize=False)
