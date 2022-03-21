@@ -73,6 +73,11 @@ fig = px.bar(
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/Data_trainNbFull.pdf')
+# %%
+# suppression des lignes ayant des nans dans les colonnes ayant moins de 1 % de nan
+app_train_clean = app_train[
+    app_train.isna().sum()[(app_train.isna().sum() <= .01 * app_train.shape[0])
+                           & (app_train.isna().sum() != 0)].index].dropna()
 # %%
 # nombre de catégories par colonnes catégorielles
 app_train.select_dtypes('object').apply(pd.Series.nunique, axis=0)
@@ -245,38 +250,73 @@ for i, source in enumerate(['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']):
 # %%
 ext_data.isna().sum()
 # %%
-imputer = SimpleImputer(strategy='median')
+#imputer = SimpleImputer(strategy='median')
 trainfeatures = app_train[[
-    'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-]]
+    'SK_ID_CURR', 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
+]].set_index('SK_ID_CURR')
 testfeatures = app_test[[
-    'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-]]
+    'SK_ID_CURR', 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
+]].set_index('SK_ID_CURR')
 
-trainfeatures = imputer.fit_transform(trainfeatures)
-testfeatures = imputer.fit_transform(testfeatures)
+
+#trainfeatures = imputer.fit_transform(trainfeatures)
+#testfeatures = imputer.fit_transform(testfeatures)
+# %%
+def create_PolFeat(trainfeatures, testfeatures):
+    pol_trans = PolynomialFeatures(degree=3)
+    trainfeat_transDF = pd.DataFrame(index=trainfeatures.index)
+    testfeat_transDF = pd.DataFrame(index=testfeatures.index)
+    for o in range(len(trainfeatures.columns) - 1):
+        for p in range(o + 1, len(trainfeatures.columns)):
+            for c in [[o, p]]:
+
+                def polfeat_trans(trainfeat_transDF, testfeat_transDF, c):
+                    pol_trans.fit(trainfeatures.iloc[:, c].dropna())
+                    trainfeat_trans = pol_trans.transform(
+                        trainfeatures.iloc[:, c].dropna())
+                    testfeat_trans = pol_trans.transform(
+                        testfeatures.iloc[:, c].dropna())
+                    trainfeat_transDF = trainfeat_transDF.join(
+                        pd.DataFrame(
+                            trainfeat_trans,
+                            columns=pol_trans.get_feature_names_out(
+                                trainfeatures.iloc[:, c].columns.to_list()),
+                            index=trainfeatures.iloc[:,
+                                                     c].dropna().index.to_list(
+                                                     )),
+                        rsuffix='_todrop')
+                    testfeat_transDF = testfeat_transDF.join(pd.DataFrame(
+                        testfeat_trans,
+                        columns=pol_trans.get_feature_names_out(
+                            testfeatures.iloc[:, c].columns.to_list()),
+                        index=testfeatures.iloc[:,
+                                                c].dropna().index.to_list()),
+                                                             rsuffix='_todrop')
+                    return (trainfeat_transDF, testfeat_transDF)
+
+                trainfeat_transDF, testfeat_transDF = polfeat_trans(
+                    trainfeat_transDF, testfeat_transDF, c)
+            for q in range(p + 1, len(trainfeatures.columns)):
+                for c in [[o, p, q]]:
+                    trainfeat_transDF, testfeat_transDF = polfeat_trans(
+                        trainfeat_transDF, testfeat_transDF, c)
+    trainfeat_transDF = trainfeat_transDF.iloc[:, ~trainfeat_transDF.columns.
+                                               str.endswith('_todrop')]
+    testfeat_transDF = testfeat_transDF.iloc[:, ~testfeat_transDF.columns.str.
+                                             endswith('_todrop')]
+    return (trainfeat_transDF, testfeat_transDF)
+
+
 # %%
-pol_trans = PolynomialFeatures(degree=3)
-pol_trans.fit(trainfeatures)
-
-trainfeat_trans = pol_trans.transform(trainfeatures)
-testfeat_trans = pol_trans.transform(testfeatures)
+trainfeat_transDF, testfeat_transDF = create_PolFeat(trainfeatures,
+                                                     testfeatures)
 
 # %%
-trainfeat_transDF = pd.DataFrame(trainfeat_trans,
-                                 columns=pol_trans.get_feature_names_out([
-                                     'EXT_SOURCE_1', 'EXT_SOURCE_2',
-                                     'EXT_SOURCE_3', 'DAYS_BIRTH'
-                                 ]))
 trainfeat_transDF = trainfeat_transDF.join(
     app_train.drop(
         columns={'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
                  }))
-testfeat_transDF = pd.DataFrame(testfeat_trans,
-                                columns=pol_trans.get_feature_names_out([
-                                    'EXT_SOURCE_1', 'EXT_SOURCE_2',
-                                    'EXT_SOURCE_3', 'DAYS_BIRTH'
-                                ]))
+
 testfeat_transDF = testfeat_transDF.join(
     app_test.drop(
         columns={'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
@@ -291,16 +331,19 @@ print('\nMeilleures correlations négatives :\n',
 
 
 # %%
-def preprocessing(train, test):
-    # scaler
-    scaler = MinMaxScaler(feature_range=(0, 1))
-
+def preprocessing(train, test, imputerize=False):
     train_clean = train.drop(columns='TARGET')
     # impute
-    imputer.fit(train_clean)
-    train_imp = imputer.transform(train_clean)
-    test_imp = imputer.transform(test)
+    if imputerize is True:
+        imputer = SimpleImputer(strategy='median')
+        imputer.fit(train_clean)
+        train_imp = imputer.transform(train_clean)
+        test_imp = imputer.transform(test)
+    else:
+        train_imp = train_clean
+        test_imp = test
     # scale
+    scaler = MinMaxScaler(feature_range=(0, 1))
     scaler.fit(train_imp)
     train_scal = scaler.transform(train_imp)
     test_scal = scaler.transform(test_imp)
@@ -312,7 +355,7 @@ def preprocessing(train, test):
 
 
 # %%
-X_train, X_test, y_train, y_test = preprocessing(app_train, app_test)
+X_train, X_test, y_train, y_test = preprocessing(app_train, app_test, True)
 # %%
 # baseline : logistic regression
 log_reg = LogisticRegression(max_iter=1000, random_state=0)
@@ -375,9 +418,11 @@ print(
 #
 # Rééchantillonnage avec imblearn
 # %%
-# utilisation d'un échantillon de 30000 clients
-X_train, X_test, y_train, y_test = preprocessing(
-    app_train.sample(30000, random_state=0), app_test)
+# utilisation d'un échantillon de 40000 clients
+X_train, X_test, y_train, y_test = preprocessing(app_train.sample(
+    40000, random_state=0),
+                                                 app_test,
+                                                 imputerize=True)
 # %%
 fig = go.Figure()
 fig.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
@@ -459,7 +504,7 @@ param_grid = [{
 }, {
     'sampling': sampler,
     'classifier': [GradientBoostingClassifier(random_state=0)],
-    'classifier__loss': ['deviance','exponential'],
+    'classifier__loss': ['deviance', 'exponential'],
     'classifier__n_estimators': [100, 500, 1000]
 }, {
     'sampling':
@@ -484,13 +529,23 @@ classifier = Pipeline([('sampling', 'passthrough'),
                        ('classifier', 'passthrough')])
 
 
-def GridPlot(classifier, param_grid, train, test, data_type=str, sample=None):
+def GridPlot(classifier,
+             param_grid,
+             train,
+             test,
+             data_type=str,
+             imputerize=True,
+             sample=None):
 
     if sample == None:
-        X_train, X_test, y_train, y_test = preprocessing(train, test)
+        X_train, X_test, y_train, y_test = preprocessing(train,
+                                                         test,
+                                                         imputerize=imputerize)
     else:
-        X_train, X_test, y_train, y_test = preprocessing(
-            train.sample(sample, random_state=0), test)
+        X_train, X_test, y_train, y_test = preprocessing(train.sample(
+            sample, random_state=0),
+                                                         test,
+                                                         imputerize=imputerize)
 
     Scores = pd.DataFrame()
     RocCurve = pd.DataFrame()
@@ -586,7 +641,7 @@ def GridPlot(classifier, param_grid, train, test, data_type=str, sample=None):
                         'value':
                         grid.best_estimator_.named_steps['classifier'].coef_[0]
                     },
-                    index=pd.RangeIndex(IDX, len(test.columns)))
+                    index=pd.RangeIndex(IDX, IDX + len(test.columns)))
             ])
             IDX += len(test.columns)
         else:
@@ -602,7 +657,7 @@ def GridPlot(classifier, param_grid, train, test, data_type=str, sample=None):
                         grid.best_estimator_.named_steps['classifier'].
                         feature_importances_
                     },
-                    index=pd.RangeIndex(IDX, len(test.columns)))
+                    index=pd.RangeIndex(IDX, IDX + len(test.columns)))
             ])
             IDX += len(test.columns)
 
@@ -644,8 +699,37 @@ def GridPlot(classifier, param_grid, train, test, data_type=str, sample=None):
 
 
 # %%
-Scores_base, ImpFeat_base = GridPlot(classifier, param_grid, app_train,
-                                     app_test, 'base', 4000)
+param_grid = [{
+    'sampling':
+    sampler,
+    'classifier': [
+        XGBClassifier(tree_method='gpu_hist',
+                      gpu_id=0,
+                      objective='binary:logistic',
+                      eval_metric='auc',
+                      use_label_encoder=False,
+                      random_state=0)
+    ]
+}, {
+    'sampling':
+    sampler,
+    'classifier': [
+        LGBMClassifier(objective='binary',
+                       random_state=0,
+                       device_type='gpu',
+                       verbose=0)
+    ],
+    'classifier__boosting_type': ['gbdt', 'dart', 'rf', 'goss'],
+    'classifier__n_estimators': [100, 500, 1000]
+}]
+
+Scores_base, ImpFeat_base = GridPlot(classifier,
+                                     param_grid,
+                                     app_train,
+                                     app_test,
+                                     data_type='base',
+                                     sample=40000,
+                                     imputerize=False)
 # %%
 ScoresM_base = Scores_base.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
@@ -658,23 +742,33 @@ fig = px.bar(
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGrid_base.pdf')
-# %%
+# %%
 PlotDF_ImpFeat_base = ImpFeat_base.sort_values(
     by='value', ascending=False).groupby('Modèle').head(10)
-fig = px.bar(PlotDF_ImpFeat_base,
-             x='value',
-             y='Feature',
-             orientation='h',
-             facet_row='Modèle',
-             height=1000)
+fig = px.bar(
+    PlotDF_ImpFeat_base,
+    x='value',
+    y='Feature',
+    orientation='h',
+    labels={'value': 'Importance value'},
+    facet_row='Modèle',
+    facet_row_spacing=.05,
+    title='Importances des variables utilisées par les différents modèles')
 fig.update_yaxes(matches=None)
 fig.update_xaxes(matches=None, showticklabels=True)
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/BestFeatGrid_base.pdf')
 # %%
-Scores_FE, ImpFeat_FE = GridPlot(classifier, param_grid, X_train, X_test,
-                                 y_train, y_test, 'featEng')
+Scores_FE, ImpFeat_FE = GridPlot(classifier,
+                                 param_grid,
+                                 X_train,
+                                 X_test,
+                                 y_train,
+                                 y_test,
+                                 data_type='featEng',
+                                 sample=40000,
+                                 imputerize=False)
 # %%
 ScoresM_FE = Scores_FE.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
@@ -690,12 +784,17 @@ if write_data is True:
 # %%
 PlotDF_ImpFeat_FE = ImpFeat_FE.sort_values(
     by='value', ascending=False).groupby('Modèle').head(10)
-fig = px.bar(PlotDF_ImpFeat_FE,
-             x='value',
-             y='Feature',
-             orientation='h',
-             facet_row='Modèle',
-             height=1000)
+fig = px.bar(
+    PlotDF_ImpFeat_FE,
+    x='value',
+    y='Feature',
+    orientation='h',
+    labels={'value': 'Importance value'},
+    facet_row='Modèle',
+    facet_row_spacing=.05,
+    title=
+    'Importances des variables utilisées par les<br>différents modèles avec polynomial features'
+)
 fig.update_yaxes(matches=None)
 fig.update_xaxes(matches=None, showticklabels=True)
 fig.show(renderer='notebook')
