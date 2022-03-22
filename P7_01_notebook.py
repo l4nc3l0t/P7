@@ -598,7 +598,8 @@ def GridPlot(classifier,
             RocCurve,
             pd.DataFrame({
                 'Modèle':
-                str(grid.best_params_['classifier']).split('(')[0],
+                str(grid.best_params_['classifier']).split('(')[0] + '_' +
+                data_type,
                 'FPR':
                 fpr,
                 'TPR':
@@ -612,7 +613,8 @@ def GridPlot(classifier,
             pd.DataFrame(
                 {
                     'Modèle':
-                    str(grid.best_params_['classifier']).split('(')[0],
+                    str(grid.best_params_['classifier']).split('(')[0] + '_' +
+                    data_type,
                     'Accuracy':
                     grid.cv_results_['mean_test_Accuracy'][grid.best_index_],
                     'AUC':
@@ -635,7 +637,8 @@ def GridPlot(classifier,
                 pd.DataFrame(
                     {
                         'Modèle':
-                        str(grid.best_params_['classifier']).split('(')[0],
+                        str(grid.best_params_['classifier']).split('(')[0] +
+                        '_' + data_type,
                         'Feature':
                         test.columns,
                         'value':
@@ -650,7 +653,8 @@ def GridPlot(classifier,
                 pd.DataFrame(
                     {
                         'Modèle':
-                        str(grid.best_params_['classifier']).split('(')[0],
+                        str(grid.best_params_['classifier']).split('(')[0] +
+                        '_' + data_type,
                         'Feature':
                         test.columns,
                         'value':
@@ -798,4 +802,16 @@ fig.update_xaxes(matches=None, showticklabels=True)
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/BestFeatGrid_FE.pdf')
+# %%
+ScoresFull = pd.concat([ScoresM_base, ScoresM_FE])
+fig = px.bar(
+    ScoresFull,
+    x='Score',
+    y='value',
+    color='Modèle',
+    barmode='group',
+    title='Scores pour les différents modèles')
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/ScoresGridFull.pdf')
 # %%
