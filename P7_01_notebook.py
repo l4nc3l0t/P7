@@ -52,13 +52,127 @@ else:
 # %%
 app_train = pd.read_csv('./application_train.csv')
 app_test = pd.read_csv('./application_test.csv')
+bureau_balance = pd.read_csv('./bureau_balance.csv')
+bureau = pd.read_csv('./bureau.csv')
+credit_card_balance = pd.read_csv('./credit_card_balance.csv')
+installments_payments = pd.read_csv('./installments_payments.csv')
+POS_CASH_balance = pd.read_csv('./POS_CASH_balance.csv')
+previous_application = pd.read_csv('./previous_application.csv')
+sample_submission = pd.read_csv('./sample_submission.csv')
+# %% [markdown]
+#### Fichier bureau_balance
+# %%
+bureau_balance.info()
+# %%
+bureau_balanceG = pd.get_dummies(
+    bureau_balance.set_index('SK_ID_BUREAU')).groupby(
+        'SK_ID_BUREAU').sum().drop(columns='MONTHS_BALANCE').join(
+            bureau_balance.set_index('SK_ID_BUREAU').MONTHS_BALANCE.groupby(
+                'SK_ID_BUREAU').agg(['min', 'max', 'mean', 'std']).rename(
+                    columns={
+                        'min': 'MONTHS_BALANCE_min',
+                        'max': 'MONTHS_BALANCE_max',
+                        'mean': 'MONTHS_BALANCE_mean',
+                        'std': 'MONTHS_BALANCE_std'
+                    }))
+# %% [markdown]
+#### Fichier bureau
+# %%
+bureau.info()
+# %%
+# on joint les données groupées de bureau balance au fichier bureau
+bureauBalG = bureau.set_index('SK_ID_BUREAU').join(bureau_balanceG)
+# %%
+#  dummy variables
+bureauBalGD = pd.get_dummies(
+    bureauBalG.select_dtypes('object'),
+    dummy_na=True).join(bureauBalG.SK_ID_CURR).groupby('SK_ID_CURR').sum()
+# %%
+# groupe par SK_ID_CURR
+bureauBalGNum = bureauBalG.select_dtypes('number').groupby('SK_ID_CURR').agg(
+    ['min', 'max', 'std', 'mean'])
+bureauBalGNum.columns = bureauBalGNum.columns.get_level_values(
+    0) + '_' + bureauBalGNum.columns.get_level_values(1)
+
+bureauG = bureauBalGNum.join(bureauBalGD)
+
+# %% [markdown]
+#### Fichier credit_card_balance
+# %%
+credit_card_balance.info()
+# %%
+credit_card_balanceNumG = credit_card_balance.drop(
+    columns='SK_ID_CURR').set_index('SK_ID_PREV').select_dtypes(
+        'number').groupby('SK_ID_PREV').agg(['min', 'max', 'mean', 'std'])
+
+credit_card_balanceNumG.columns = credit_card_balanceNumG.columns.get_level_values(
+    0) + '_' + credit_card_balanceNumG.columns.get_level_values(1)
+
+credit_card_balanceG = pd.get_dummies(
+    credit_card_balance.set_index('SK_ID_PREV').select_dtypes(
+        'object')).groupby('SK_ID_PREV').sum().join(credit_card_balanceNumG)
+# %% [markdown]
+#### Fichier installments_payments
+# %%
+installments_payments.info()
+# %%
+installments_paymentsG = installments_payments.drop(
+    columns='SK_ID_CURR').set_index('SK_ID_PREV').groupby('SK_ID_PREV').agg(
+        ['min', 'max', 'mean', 'std'])
+installments_paymentsG.columns = installments_paymentsG.columns.get_level_values(
+    0) + '_' + installments_paymentsG.columns.get_level_values(1)
+
+# %% [markdown]
+#### Fichier POS_CASH_balance
+# %%
+POS_CASH_balance.info()
+# %%
+POS_CASH_balanceNumG = POS_CASH_balance.set_index('SK_ID_PREV').drop(
+    columns='SK_ID_CURR').select_dtypes('number').groupby('SK_ID_PREV').agg(
+        ['min', 'max', 'mean', 'std'])
+
+POS_CASH_balanceNumG.columns = POS_CASH_balanceNumG.columns.get_level_values(
+    0) + '_' + POS_CASH_balanceNumG.columns.get_level_values(1)
+
+POS_CASH_balanceG = pd.get_dummies(
+    POS_CASH_balance.set_index('SK_ID_PREV').select_dtypes('object')).groupby(
+        'SK_ID_PREV').sum().join(POS_CASH_balanceNumG)
+
+# %% [markdown]
+#### Fichier previous_application
+# %%
+previous_application.info()
+# %%
+previous_applicationNumG = previous_application.set_index(
+    'SK_ID_PREV').select_dtypes('number').groupby('SK_ID_PREV').agg(
+        ['min', 'max', 'mean', 'std'])
+previous_applicationNumG.columns = previous_applicationNumG.columns.get_level_values(
+    0) + '_' + previous_applicationNumG.columns.get_level_values(1)
+
+previous_applicationNumGClean = previous_applicationNumG.drop(
+    columns=['SK_ID_CURR_max', 'SK_ID_CURR_mean', 'SK_ID_CURR_std']).rename(
+        columns={'SK_ID_CURR_min': 'SK_ID_CURR'})
+# %%
+previous_applicationG = pd.get_dummies(
+    previous_application.set_index('SK_ID_PREV').select_dtypes('object')
+).groupby('SK_ID_PREV').sum().join(previous_applicationNumGClean)
+# %%
+# finir joindre
+
+# %% [markdown]
+#### Fichier application_train/test.csv
 # %%
 app_train.info()
 # %%
 app_test.info()
 # %%
+# Ajouts des données des fichiers complémentaires
+# bureau
+app_train = app_train.set_index('SK_ID_CURR').join(bureauG)
+test_train = app_test.set_index('SK_ID_CURR').join(bureauG)
+# %%
 print('Il y a {} colonnes ayant des valeurs maquantes'.format(
-    len(app_train.isna().sum()[app_train.isna().sum() != 0].sort_values())))
+    len(app_train.isna().sum()[app_train.isna().sum() != 0])))
 # %%
 # graphique du nombre de données
 fig = px.bar(
@@ -72,8 +186,8 @@ fig = px.bar(
     width=1100)
 fig.show(renderer='notebook')
 if write_data is True:
-    fig.write_image('./Figures/Data_trainNbFull.pdf')
-# %%
+    fig.write_image('./Figures/app_trainNbDataMiss.pdf')
+# %%
 # suppression des lignes ayant des nans dans les colonnes ayant moins de 1 % de nan
 app_train_clean = app_train[
     app_train.isna().sum()[(app_train.isna().sum() <= .01 * app_train.shape[0])
@@ -215,9 +329,8 @@ if write_data is True:
 # %% [markdown]
 # meilleures corrélation négatives EXT_SOURCE
 # %%
-ext_data = app_train[[
-    'TARGET', 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-]]
+ext_data = app_train[target_corr.abs().sort_values(
+    ascending=False).head(6).index.to_list()]
 ext_corr = ext_data.corr().round(2)
 # %%
 ext_corr = ext_corr.where(np.tril(np.ones(ext_corr.shape)).astype('bool'))
@@ -249,19 +362,18 @@ for i, source in enumerate(['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']):
         fig = px.histogram()
 # %%
 ext_data.isna().sum()
+# %% [markdown]
+# calcul des variables polynomiales à partir des variables les plus corrélées
+# avec la cible
 # %%
-#imputer = SimpleImputer(strategy='median')
-trainfeatures = app_train[[
-    'SK_ID_CURR', 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-]].set_index('SK_ID_CURR')
-testfeatures = app_test[[
-    'SK_ID_CURR', 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-]].set_index('SK_ID_CURR')
+trainfeatures = app_train[target_corr.drop('TARGET').abs().sort_values(
+    ascending=False).head(3).index.to_list()].set_index(app_train.index)
+
+testfeatures = app_test[target_corr.drop('TARGET').abs().sort_values(
+    ascending=False).head(3).index.to_list()].set_index(app_test.index)
 
 
-#trainfeatures = imputer.fit_transform(trainfeatures)
-#testfeatures = imputer.fit_transform(testfeatures)
-# %%
+# %%
 def create_PolFeat(trainfeatures, testfeatures):
     pol_trans = PolynomialFeatures(degree=3)
     trainfeat_transDF = pd.DataFrame(index=trainfeatures.index)
@@ -313,14 +425,12 @@ trainfeat_transDF, testfeat_transDF = create_PolFeat(trainfeatures,
 
 # %%
 trainfeat_transDF = trainfeat_transDF.join(
-    app_train.drop(
-        columns={'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-                 }).set_index('SK_ID_CURR'))
+    app_train.drop(columns=target_corr.drop('TARGET').abs().sort_values(
+        ascending=False).head(5).index.to_list()).set_index(app_train.index))
 
 testfeat_transDF = testfeat_transDF.join(
-    app_test.drop(
-        columns={'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH'
-                 }).set_index('SK_ID_CURR'))
+    app_test.drop(columns=target_corr.drop('TARGET').abs().sort_values(
+        ascending=False).head(5).index.to_list()).set_index(app_test.index))
 # %%
 trainfeat_corr = trainfeat_transDF.corr().TARGET
 print('Meilleures correlations positives :\n',
@@ -328,6 +438,10 @@ print('Meilleures correlations positives :\n',
 # %%
 print('\nMeilleures correlations négatives :\n',
       trainfeat_corr.sort_values().head(10))
+
+# %% [markdown]
+# Nous avons une légère amélioration de la corrélations de la cible
+# avec certaines nouvelles variables
 
 
 # %%
@@ -702,7 +816,7 @@ def GridPlot(classifier,
     return Scores, feature_importance
 
 
-# %%
+# %%
 param_grid = [{
     'sampling':
     sampler,
@@ -734,7 +848,7 @@ Scores_base, ImpFeat_base = GridPlot(classifier,
                                      data_type='base',
                                      sample=40000,
                                      imputerize=False)
-# %%
+# %%
 ScoresM_base = Scores_base.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
     ScoresM_base,
@@ -771,7 +885,7 @@ Scores_FE, ImpFeat_FE = GridPlot(classifier,
                                  data_type='featEng',
                                  sample=40000,
                                  imputerize=False)
-# %%
+# %%
 ScoresM_FE = Scores_FE.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
     ScoresM_base,
@@ -783,7 +897,7 @@ fig = px.bar(
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGrid_FE.pdf')
-# %%
+# %%
 PlotDF_ImpFeat_FE = ImpFeat_FE.sort_values(
     by='value', ascending=False).groupby('Modèle').head(10)
 fig = px.bar(
@@ -804,13 +918,12 @@ if write_data is True:
     fig.write_image('./Figures/BestFeatGrid_FE.pdf')
 # %%
 ScoresFull = pd.concat([ScoresM_base, ScoresM_FE])
-fig = px.bar(
-    ScoresFull,
-    x='Score',
-    y='value',
-    color='Modèle',
-    barmode='group',
-    title='Scores pour les différents modèles')
+fig = px.bar(ScoresFull,
+             x='Score',
+             y='value',
+             color='Modèle',
+             barmode='group',
+             title='Scores pour les différents modèles')
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGridFull.pdf')
