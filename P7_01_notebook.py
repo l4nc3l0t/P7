@@ -14,7 +14,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import roc_curve, auc, confusion_matrix, roc_auc_score, \
-    make_scorer
+    make_scorer, fbeta_score
 from sklearn.model_selection import GridSearchCV
 
 from xgboost import XGBClassifier
@@ -77,8 +77,8 @@ fig = px.bar(
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/app_trainNbDataMiss.pdf')
-# %%
-# suppression des lignes ayant des nans dans les colonnes ayant moins de 1 % de nan
+# %%
+# suppression des lignes ayant des nans dans les colonnes ayant moins de 1 % de nan
 app_train_clean = app_train[
     app_train.isna().sum()[(app_train.isna().sum() <= .01 * app_train.shape[0])
                            & (app_train.isna().sum() != 0)].index].dropna()
@@ -254,8 +254,8 @@ for i, source in enumerate(['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']):
 ext_data.isna().sum()
 # %% [markdown]
 # calcul des variables polynomiales à partir des variables les plus corrélées
-# avec la cible
-# %%
+# avec la cible
+# %%
 target_corr_extCol = target_corr.drop('TARGET').abs().sort_values(
     ascending=False).head(3).index.to_list()
 trainfeatures = app_train[target_corr_extCol].set_index(app_train.index)
@@ -264,7 +264,8 @@ testfeatures = app_test[target_corr_extCol].set_index(app_test.index)
 del target_corr
 gc.collect()
 
-# %%
+
+# %%
 def create_PolFeat(trainfeatures, testfeatures):
     pol_trans = PolynomialFeatures(degree=3)
     trainfeat_transDF = pd.DataFrame(index=trainfeatures.index)
@@ -328,6 +329,7 @@ print('Meilleures correlations positives :\n',
 # %%
 print('\nMeilleures correlations négatives :\n',
       trainfeat_corr.sort_values().head(10))
+
 
 # %% [markdown]
 # Nous avons une légère amélioration de la corrélations de la cible
@@ -482,10 +484,11 @@ fig.update_layout(xaxis_title='False Positive Rate',
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/CurvesROClogreg.pdf')
-# %%
-# utilisation d'un échantillon de 4000 clients
-X_train, X_test, y_train, y_test = preprocessing(
-    app_train.sample(4000, random_state=0), app_test)
+# %% [markdown]
+# Avec TomekLink, la régression logistique classe tout les clients
+# comme ne faisant pas défaut ce que l'on ne veut pas et SMOTENN,
+# permet un classement naïf 50/50 qui ne reflète pas non plus la
+# réalité
 # %%
 sampler = [
     RandomUnderSampler(random_state=0),
@@ -537,6 +540,7 @@ def GridPlot(classifier,
              test,
              data_type=str,
              imputerize=True,
+             refit='AUC',
              sample=None):
 
     if sample == None:
@@ -571,9 +575,10 @@ def GridPlot(classifier,
                                 'Accuracy': 'balanced_accuracy',
                                 'Precision': 'precision_weighted',
                                 'Recall': 'recall_weighted',
-                                'F1': 'f1_weighted'
+                                'F1': 'f1_weighted',
+                                'F10': make_scorer(fbeta_score, beta=10)
                             },
-                            refit='AUC',
+                            refit=refit,
                             n_jobs=-1)
         grid.fit(X_train, y_train)
         grid_pred = grid.predict(X_test)
@@ -589,10 +594,13 @@ def GridPlot(classifier,
             grid.cv_results_['mean_test_Recall'][grid.best_index_]))
         print('F1 : {}'.format(
             grid.cv_results_['mean_test_F1'][grid.best_index_]))
+        print('F10 : {}'.format(
+            grid.cv_results_['mean_test_F10'][grid.best_index_]))
 
         fpr, tpr, thresholds = roc_curve(y_test, grid_proba[:, 1])
-        name = '{}<br>(AUC={})'.format(
+        name = '{} - {}<br>(AUC={})'.format(
             str(grid.best_params_['classifier']).split('(')[0],
+            str(grid.best_params_['sampling']).split('(')[0],
             round(auc(fpr, tpr), 4))
         Rocfig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines'))
 
@@ -600,7 +608,8 @@ def GridPlot(classifier,
             RocCurve,
             pd.DataFrame({
                 'Modèle':
-                str(grid.best_params_['classifier']).split('(')[0] + '_' +
+                str(grid.best_params_['classifier']).split('(')[0] + '/' +
+                str(grid.best_params_['sampling']).split('(')[0] + '_' +
                 data_type,
                 'FPR':
                 fpr,
@@ -615,7 +624,8 @@ def GridPlot(classifier,
             pd.DataFrame(
                 {
                     'Modèle':
-                    str(grid.best_params_['classifier']).split('(')[0] + '_' +
+                    str(grid.best_params_['classifier']).split('(')[0] + '/' +
+                    str(grid.best_params_['sampling']).split('(')[0] + '_' +
                     data_type,
                     'Accuracy':
                     grid.cv_results_['mean_test_Accuracy'][grid.best_index_],
@@ -626,7 +636,9 @@ def GridPlot(classifier,
                     'Recall':
                     grid.cv_results_['mean_test_Recall'][grid.best_index_],
                     'F1':
-                    grid.cv_results_['mean_test_F1'][grid.best_index_]
+                    grid.cv_results_['mean_test_F1'][grid.best_index_],
+                    'F10':
+                    grid.cv_results_['mean_test_F10'][grid.best_index_]
                 },
                 index=[idx])
         ])
@@ -640,6 +652,8 @@ def GridPlot(classifier,
                     {
                         'Modèle':
                         str(grid.best_params_['classifier']).split('(')[0] +
+                        '/' +
+                        str(grid.best_params_['sampling']).split('(')[0] +
                         '_' + data_type,
                         'Feature':
                         test.columns,
@@ -656,6 +670,8 @@ def GridPlot(classifier,
                     {
                         'Modèle':
                         str(grid.best_params_['classifier']).split('(')[0] +
+                        '/' +
+                        str(grid.best_params_['sampling']).split('(')[0] +
                         '_' + data_type,
                         'Feature':
                         test.columns,
@@ -690,9 +706,10 @@ def GridPlot(classifier,
         CMfig.update_coloraxes(showscale=False)
         CMfig.show(renderer='notebook')
         if write_data is True:
-            CMfig.write_image('./Figures/CM{}Grid{}.pdf'.format(
+            CMfig.write_image('./Figures/CM{}Grid{}{}.pdf'.format(
                 data_type,
-                str(grid.best_params_['classifier']).split('(')[0]))
+                str(grid.best_params_['classifier']).split('(')[0],
+                str(grid.best_params_['sampling']).split('(')[0]))
 
     Rocfig.update_layout(xaxis_title='False Positive Rate',
                          yaxis_title='True Positive Rate')
@@ -704,7 +721,14 @@ def GridPlot(classifier,
     return Scores, feature_importance
 
 
-# %%
+# %%
+sampler = [
+    RandomUnderSampler(random_state=0),
+    RandomOverSampler(random_state=0),
+    SMOTE(random_state=0, n_jobs=-1),
+    SMOTETomek(random_state=0, n_jobs=-1)
+]
+
 param_grid = [{
     'sampling':
     sampler,
@@ -736,7 +760,7 @@ Scores_base, ImpFeat_base = GridPlot(classifier,
                                      data_type='base',
                                      sample=40000,
                                      imputerize=False)
-# %%
+# %%
 ScoresM_base = Scores_base.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
     ScoresM_base,
@@ -773,10 +797,10 @@ Scores_FE, ImpFeat_FE = GridPlot(classifier,
                                  data_type='featEng',
                                  sample=40000,
                                  imputerize=False)
-# %%
+# %%
 ScoresM_FE = Scores_FE.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
-    ScoresM_base,
+    ScoresM_FE,
     x='Score',
     y='value',
     color='Modèle',
@@ -785,7 +809,7 @@ fig = px.bar(
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGrid_FE.pdf')
-# %%
+# %%
 PlotDF_ImpFeat_FE = ImpFeat_FE.sort_values(
     by='value', ascending=False).groupby('Modèle').head(10)
 fig = px.bar(
@@ -806,14 +830,82 @@ if write_data is True:
     fig.write_image('./Figures/BestFeatGrid_FE.pdf')
 # %%
 ScoresFull = pd.concat([ScoresM_base, ScoresM_FE])
+fig = px.bar(ScoresFull,
+             x='Score',
+             y='value',
+             color='Modèle',
+             barmode='group',
+             title='Scores pour les différents modèles')
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/ScoresGridFull.pdf')
+# %% [markdown]
+# L'utilisation de feature polynomiales n'améliore pas significativement nos
+# résultats. Nous allons à présent tester un score plus adapté afin de prendre
+# en compte le coût d'un mauvais classement
+# %%
+sampler = [RandomUnderSampler(random_state=0), RandomOverSampler(random_state=0)]
+
+param_grid = [{
+    'sampling':
+    [sampler[0]],
+    'classifier': [
+        XGBClassifier(tree_method='gpu_hist',
+                      gpu_id=0,
+                      objective='binary:logistic',
+                      eval_metric='auc',
+                      use_label_encoder=False,
+                      random_state=0)
+    ]
+},{
+    'sampling':
+    [sampler[1]],
+    'classifier': [
+        LGBMClassifier(objective='binary',
+                       random_state=0,
+                       device_type='gpu',
+                       verbose=0)
+    ],
+    'classifier__boosting_type': ['gbdt', 'dart', 'rf', 'goss'],
+    'classifier__n_estimators': [100, 500, 1000]
+}]
+ScoresF10_base, ImpFeatF10_base = GridPlot(classifier,
+                                           param_grid,
+                                           app_train,
+                                           app_test,
+                                           data_type='base',
+                                           sample=100000,
+                                           refit='F10',
+                                           imputerize=False)
+# %%
+ScoresF10M_base = ScoresF10_base.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
-    ScoresFull,
+    ScoresF10M_base,
     x='Score',
     y='value',
     color='Modèle',
     barmode='group',
-    title='Scores pour les différents modèles')
+    title='Scores')
 fig.show(renderer='notebook')
 if write_data is True:
-    fig.write_image('./Figures/ScoresGridFull.pdf')
+    fig.write_image('./Figures/ScoresGridF10_base.pdf')
+# %%
+PlotDF_ImpFeatF10_base = ImpFeatF10_base.sort_values(
+    by='value', ascending=False).groupby('Modèle').head(10)
+fig = px.bar(
+    PlotDF_ImpFeatF10_base,
+    x='value',
+    y='Feature',
+    orientation='h',
+    labels={'value': 'Importance value'},
+    facet_row='Modèle',
+    facet_row_spacing=.05,
+    title=
+    'Importances des variables utilisées'
+)
+fig.update_yaxes(matches=None)
+fig.update_xaxes(matches=None, showticklabels=True)
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/BestFeatGridF10_base.pdf')
 # %%
