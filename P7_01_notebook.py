@@ -13,8 +13,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics import roc_curve, auc, confusion_matrix, roc_auc_score,\
-     make_scorer
+from sklearn.metrics import roc_curve, auc, confusion_matrix, roc_auc_score, \
+    make_scorer
 from sklearn.model_selection import GridSearchCV
 
 from xgboost import XGBClassifier
@@ -53,7 +53,7 @@ else:
 # ![](home_credit.png)
 # %% [markdown]
 #### Fichier application_train/test.csv
-# %%
+# %%
 app_train = pd.read_csv('./application_train.csv')
 app_test = pd.read_csv('./application_test.csv')
 # %%
@@ -77,9 +77,8 @@ fig = px.bar(
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/app_trainNbDataMiss.pdf')
-# %%
-# suppression des lignes ayant des nans dans les colonnes ayant moins de 1 %
-# de nan
+# %%
+# suppression des lignes ayant des nans dans les colonnes ayant moins de 1 % de nan
 app_train_clean = app_train[
     app_train.isna().sum()[(app_train.isna().sum() <= .01 * app_train.shape[0])
                            & (app_train.isna().sum() != 0)].index].dropna()
@@ -256,7 +255,7 @@ ext_data.isna().sum()
 # %% [markdown]
 # calcul des variables polynomiales à partir des variables les plus corrélées
 # avec la cible
-# %%
+# %%
 target_corr_extCol = target_corr.drop('TARGET').abs().sort_values(
     ascending=False).head(3).index.to_list()
 trainfeatures = app_train[target_corr_extCol].set_index(app_train.index)
@@ -265,8 +264,7 @@ testfeatures = app_test[target_corr_extCol].set_index(app_test.index)
 del target_corr
 gc.collect()
 
-
-# %%
+# %%
 def create_PolFeat(trainfeatures, testfeatures):
     pol_trans = PolynomialFeatures(degree=3)
     trainfeat_transDF = pd.DataFrame(index=trainfeatures.index)
@@ -322,6 +320,7 @@ trainfeat_transDF = trainfeat_transDF.join(
 
 testfeat_transDF = testfeat_transDF.join(
     app_test.drop(columns=target_corr_extCol).set_index(app_test.index))
+
 # %%
 trainfeat_corr = trainfeat_transDF.corr().TARGET
 print('Meilleures correlations positives :\n',
@@ -333,246 +332,6 @@ print('\nMeilleures correlations négatives :\n',
 # %% [markdown]
 # Nous avons une légère amélioration de la corrélations de la cible
 # avec certaines nouvelles variables
-# %% [markdown]
-#### Fichier bureau_balance
-# %%
-bureau_balance = pd.read_csv('./bureau_balance.csv')
-bureau_balance.info()
-# %%
-bureau_balanceG = pd.get_dummies(
-    bureau_balance.set_index('SK_ID_BUREAU')).groupby(
-        'SK_ID_BUREAU').sum().drop(columns='MONTHS_BALANCE').join(
-            bureau_balance.set_index('SK_ID_BUREAU').MONTHS_BALANCE.groupby(
-                'SK_ID_BUREAU').agg(['min', 'max', 'mean', 'std']).rename(
-                    columns={
-                        'min': 'MONTHS_BALANCE_min',
-                        'max': 'MONTHS_BALANCE_max',
-                        'mean': 'MONTHS_BALANCE_mean',
-                        'std': 'MONTHS_BALANCE_std'
-                    }))
-# %% [markdown]
-#### Fichier bureau
-# %%
-bureau = pd.read_csv('./bureau.csv')
-bureau.info()
-# %%
-# on joint les données groupées de bureau balance au fichier bureau
-bureauBalG = bureau.set_index('SK_ID_BUREAU').join(bureau_balanceG)
-# %%
-#  dummy variables
-bureauBalGD = pd.get_dummies(
-    bureauBalG.select_dtypes('object'),
-    dummy_na=True).join(bureauBalG.SK_ID_CURR).groupby('SK_ID_CURR').sum()
-# %%
-# groupe par SK_ID_CURR
-bureauBalGNum = bureauBalG.select_dtypes('number').groupby('SK_ID_CURR').agg(
-    ['min', 'max', 'std', 'mean'])
-bureauBalGNum.columns = bureauBalGNum.columns.get_level_values(
-    0) + '_' + bureauBalGNum.columns.get_level_values(1)
-bureauG = bureauBalGNum.join(bureauBalGD)
-# réduction mémoire
-bureauG[bureauG.select_dtypes('float64').columns] = bureauG[
-    bureauG.select_dtypes('float64').columns].astype('float32')
-del bureau, bureau_balance, bureau_balanceG, bureauBalG, bureauBalGD, \
-    bureauBalGNum
-
-
-# %%
-def BestCorrCol(df, nbcol=10):
-    df = df.join(app_train.set_index('SK_ID_CURR').TARGET, how='right')
-    df_corr = df.corr().TARGET
-
-    print('Meilleures correlations positives :\n',
-          df_corr.sort_values(ascending=False).head(10))
-
-    print('\nMeilleures correlations négatives :\n',
-          df_corr.sort_values().head(10))
-
-    df_corrCol = df_corr.drop('TARGET').abs().sort_values(
-        ascending=False).head(nbcol).index.to_list()
-    print(
-        "\nColonnes conservées pour l'étude : \n",
-        df_corr.drop('TARGET').abs().sort_values(ascending=False).head(nbcol))
-    dfBestCorr = df[df_corrCol]
-    return (dfBestCorr)
-
-
-# %%
-bureauG = BestCorrCol(bureauG)
-# %% [markdown]
-#### Fichier credit_card_balance
-# %%
-credit_card_balance = pd.read_csv('./credit_card_balance.csv')
-credit_card_balance.info()
-# %%
-credit_card_balanceNumG = credit_card_balance.set_index(
-    'SK_ID_PREV').select_dtypes('number').groupby('SK_ID_PREV').agg(
-        ['min', 'max', 'mean', 'std'])
-
-credit_card_balanceNumG.columns = credit_card_balanceNumG.columns.get_level_values(
-    0) + '_' + credit_card_balanceNumG.columns.get_level_values(1)
-
-credit_card_balanceNumGClean = credit_card_balanceNumG.drop(
-    columns=['SK_ID_CURR_max', 'SK_ID_CURR_mean', 'SK_ID_CURR_std']).rename(
-        columns={'SK_ID_CURR_min': 'SK_ID_CURR'})
-
-credit_card_balanceG = pd.get_dummies(
-    credit_card_balance.set_index('SK_ID_PREV').select_dtypes('object')
-).groupby('SK_ID_PREV').sum().join(credit_card_balanceNumGClean)
-
-credit_card_balanceG[credit_card_balanceG.select_dtypes(
-    'float64').columns] = credit_card_balanceG[
-        credit_card_balanceG.select_dtypes('float64').columns].astype(
-            'float32')
-# %%
-credit_card_balanceG = BestCorrCol(
-    credit_card_balanceG.set_index('SK_ID_CURR'), 5)
-del credit_card_balance, credit_card_balanceNumG
-# %% [markdown]
-#### Fichier installments_payments
-# %%
-installments_payments = pd.read_csv('./installments_payments.csv')
-installments_payments.info()
-# %%
-installments_paymentsG = installments_payments.set_index('SK_ID_PREV').groupby(
-    'SK_ID_PREV').agg(['min', 'max', 'mean', 'std'])
-installments_paymentsG.columns = installments_paymentsG.columns.get_level_values(
-    0) + '_' + installments_paymentsG.columns.get_level_values(1)
-
-installments_paymentsG = installments_paymentsG.drop(
-    columns=['SK_ID_CURR_max', 'SK_ID_CURR_mean', 'SK_ID_CURR_std']).rename(
-        columns={'SK_ID_CURR_min': 'SK_ID_CURR'})
-
-installments_paymentsG[installments_paymentsG.select_dtypes(
-    'float64').columns] = installments_paymentsG[
-        installments_paymentsG.select_dtypes('float64').columns].astype(
-            'float32')
-# %%
-installments_paymentsG = BestCorrCol(
-    installments_paymentsG.set_index('SK_ID_CURR'), 5)
-del installments_payments
-# %% [markdown]
-#### Fichier POS_CASH_balance
-# %%
-POS_CASH_balance = pd.read_csv('./POS_CASH_balance.csv')
-POS_CASH_balance.info()
-# %%
-POS_CASH_balanceNumG = POS_CASH_balance.set_index('SK_ID_PREV').select_dtypes(
-    'number').groupby('SK_ID_PREV').agg(['min', 'max', 'mean', 'std'])
-
-POS_CASH_balanceNumG.columns = POS_CASH_balanceNumG.columns.get_level_values(
-    0) + '_' + POS_CASH_balanceNumG.columns.get_level_values(1)
-
-POS_CASH_balanceNumGClean = POS_CASH_balanceNumG.drop(
-    columns=['SK_ID_CURR_max', 'SK_ID_CURR_mean', 'SK_ID_CURR_std']).rename(
-        columns={'SK_ID_CURR_min': 'SK_ID_CURR'})
-
-POS_CASH_balanceG = pd.get_dummies(
-    POS_CASH_balance.set_index('SK_ID_PREV').select_dtypes('object')).groupby(
-        'SK_ID_PREV').sum().join(POS_CASH_balanceNumGClean)
-
-POS_CASH_balanceG[POS_CASH_balanceG.select_dtypes(
-    'float64').columns] = POS_CASH_balanceG[POS_CASH_balanceG.select_dtypes(
-        'float64').columns].astype('float32')
-# %%
-POS_CASH_balanceG = BestCorrCol(POS_CASH_balanceG.set_index('SK_ID_CURR'), 5)
-del POS_CASH_balance, POS_CASH_balanceNumG
-# %% [markdown]
-#### Fichier previous_application
-# %%
-previous_application = pd.read_csv('./previous_application.csv')
-previous_application.info()
-# %%
-previous_applicationNumG = previous_application.set_index(
-    'SK_ID_PREV').select_dtypes('number').groupby('SK_ID_PREV').agg(
-        ['min', 'max', 'mean', 'std'])
-previous_applicationNumG.columns = previous_applicationNumG.columns.get_level_values(
-    0) + '_' + previous_applicationNumG.columns.get_level_values(1)
-
-previous_applicationNumGClean = previous_applicationNumG.drop(
-    columns=['SK_ID_CURR_max', 'SK_ID_CURR_mean', 'SK_ID_CURR_std']).rename(
-        columns={'SK_ID_CURR_min': 'SK_ID_CURR'})
-# %%
-previous_applicationG = pd.get_dummies(
-    previous_application.set_index('SK_ID_PREV').select_dtypes('object')
-).groupby('SK_ID_PREV').sum().join(previous_applicationNumGClean)
-
-previous_applicationG[previous_applicationG.select_dtypes(
-    'float64').columns] = previous_applicationG[
-        previous_applicationG.select_dtypes('float64').columns].astype(
-            'float32')
-# %%
-previous_applicationG = BestCorrCol(
-    previous_applicationG.set_index('SK_ID_CURR'), 5)
-del previous_application, previous_applicationNumG
-
-
-# %%
-# remplissage lors de l'assemblage des données
-def CleanJoin(left, right, suffix=str):
-    LR = left.join(right, rsuffix=suffix)
-    col_to_drop = LR.columns.where(LR.columns.str.endswith(suffix)).dropna()
-    for col in col_to_drop:
-        PAcol = col.rsplit('_', 1)[0]
-        LR[PAcol] = LR[PAcol].fillna(LR[col])
-    LR = LR.drop(columns=col_to_drop)
-    return (LR)
-
-
-# %%
-previous_applicationJ = CleanJoin(previous_applicationG,
-                                  credit_card_balanceG,
-                                  suffix='_CBB')
-del credit_card_balanceG
-# %%
-previous_applicationJ = CleanJoin(previous_applicationJ,
-                                  installments_paymentsG,
-                                  suffix='_IP')
-del installments_paymentsG
-# %%
-previous_applicationJ = CleanJoin(previous_applicationJ,
-                                  POS_CASH_balanceG,
-                                  suffix='_PCB')
-del POS_CASH_balanceG, previous_applicationG
-# %%
-# groupement par SK_ID_CURR
-PAclean = pd.DataFrame(index=previous_applicationJ.index)
-for col in previous_applicationJ.columns:
-    if col.endswith('_min'):
-        PAclean = PAclean.join(
-            previous_applicationJ[col].groupby('SK_ID_CURR').min())
-    elif col.endswith('_max'):
-        PAclean = PAclean.join(
-            previous_applicationJ[col].groupby('SK_ID_CURR').max())
-    elif col.endswith('_mean'):
-        PAclean = PAclean.join(
-            previous_applicationJ[col].groupby('SK_ID_CURR').mean())
-    elif col.endswith('_std'):
-        PAclean = PAclean.join(
-            previous_applicationJ[col].groupby('SK_ID_CURR').mean())
-    else:
-        PAclean = PAclean.join(
-            previous_applicationJ[col].groupby('SK_ID_CURR').sum())
-del previous_applicationJ
-gc.collect()
-# %%
-data_add = CleanJoin(bureauG, PAclean, '_PAc')
-del bureauG, PAclean
-gc.collect()
-# %%
-# Ajouts des données des fichiers complémentaires
-# bureau
-app_trainFull = CleanJoin(app_train.set_index('SK_ID_CURR'), data_add, '_DA')
-app_testFull = CleanJoin(app_test.set_index('SK_ID_CURR'), data_add, '_DA')
-
-trainfeatFull = CleanJoin(trainfeat_transDF.set_index('SK_ID_CURR'), data_add,
-                          '_DA')
-testfeatFull = CleanJoin(testfeat_transDF.set_index('SK_ID_CURR'), data_add,
-                         '_DA')
-del data_add, app_train, app_test, trainfeat_transDF, testfeat_transDF
-gc.collect()
-
-
 # %%
 def preprocessing(train, test, imputerize=False):
     train_clean = train.drop(columns='TARGET')
@@ -598,8 +357,7 @@ def preprocessing(train, test, imputerize=False):
 
 
 # %%
-X_train, X_test, y_train, y_test = preprocessing(app_trainFull, app_testFull,
-                                                 True)
+X_train, X_test, y_train, y_test = preprocessing(app_train, app_test, True)
 # %%
 # baseline : logistic regression
 log_reg = LogisticRegression(max_iter=1000, random_state=0)
@@ -646,9 +404,8 @@ if write_data is True:
 print(
     "Probabilité qu'un client ait fait défaut dans les données d'entrainement : {}"
     .format(
-        round(
-            app_trainFull[app_trainFull.TARGET == 1].shape[0] /
-            app_trainFull.shape[0], 3)))
+        round(app_train[app_train.TARGET == 1].shape[0] / app_train.shape[0],
+              3)))
 
 # %%
 print(
@@ -664,9 +421,9 @@ print(
 # Rééchantillonnage avec imblearn
 # %%
 # utilisation d'un échantillon de 40000 clients
-X_train, X_test, y_train, y_test = preprocessing(app_trainFull.sample(
+X_train, X_test, y_train, y_test = preprocessing(app_train.sample(
     40000, random_state=0),
-                                                 app_testFull,
+                                                 app_test,
                                                  imputerize=True)
 # %%
 fig = go.Figure()
@@ -728,7 +485,7 @@ if write_data is True:
 # %%
 # utilisation d'un échantillon de 4000 clients
 X_train, X_test, y_train, y_test = preprocessing(
-    app_trainFull.sample(4000, random_state=0), app_testFull)
+    app_train.sample(4000, random_state=0), app_test)
 # %%
 sampler = [
     RandomUnderSampler(random_state=0),
@@ -947,7 +704,7 @@ def GridPlot(classifier,
     return Scores, feature_importance
 
 
-# %%
+# %%
 param_grid = [{
     'sampling':
     sampler,
@@ -974,12 +731,12 @@ param_grid = [{
 
 Scores_base, ImpFeat_base = GridPlot(classifier,
                                      param_grid,
-                                     app_trainFull,
-                                     app_testFull,
+                                     app_train,
+                                     app_test,
                                      data_type='base',
                                      sample=40000,
                                      imputerize=False)
-# %%
+# %%
 ScoresM_base = Scores_base.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
     ScoresM_base,
@@ -1011,12 +768,12 @@ if write_data is True:
 # %%
 Scores_FE, ImpFeat_FE = GridPlot(classifier,
                                  param_grid,
-                                 trainfeatFull,
-                                 testfeatFull,
+                                 trainfeat_transDF,
+                                 testfeat_transDF,
                                  data_type='featEng',
                                  sample=40000,
                                  imputerize=False)
-# %%
+# %%
 ScoresM_FE = Scores_FE.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
     ScoresM_base,
@@ -1028,7 +785,7 @@ fig = px.bar(
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGrid_FE.pdf')
-# %%
+# %%
 PlotDF_ImpFeat_FE = ImpFeat_FE.sort_values(
     by='value', ascending=False).groupby('Modèle').head(10)
 fig = px.bar(
@@ -1049,12 +806,13 @@ if write_data is True:
     fig.write_image('./Figures/BestFeatGrid_FE.pdf')
 # %%
 ScoresFull = pd.concat([ScoresM_base, ScoresM_FE])
-fig = px.bar(ScoresFull,
-             x='Score',
-             y='value',
-             color='Modèle',
-             barmode='group',
-             title='Scores pour les différents modèles')
+fig = px.bar(
+    ScoresFull,
+    x='Score',
+    y='value',
+    color='Modèle',
+    barmode='group',
+    title='Scores pour les différents modèles')
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGridFull.pdf')
