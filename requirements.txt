@@ -9,3 +9,4 @@ kaleido
 imblearn
 xgboost
 lightgbm
+shap
