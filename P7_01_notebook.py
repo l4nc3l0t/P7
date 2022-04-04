@@ -24,6 +24,10 @@ from imblearn.under_sampling import RandomUnderSampler, TomekLinks
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.combine import SMOTEENN, SMOTETomek
 from imblearn.pipeline import Pipeline
+
+import shap
+
+shap.initjs()
 # %%
 write_data = True
 
@@ -576,7 +580,7 @@ def GridPlot(classifier,
                                 'Precision': 'precision_weighted',
                                 'Recall': 'recall_weighted',
                                 'F1': 'f1_weighted',
-                                'F10': make_scorer(fbeta_score, beta=10)
+                                'F10': make_scorer(fbeta_score, beta=.1)
                             },
                             refit=refit,
                             n_jobs=-1)
@@ -744,7 +748,7 @@ def GridPlot(classifier,
         Rocfig.write_image(
             './Figures/CurvesROCGridBest_{}.pdf'.format(data_type))
 
-    return Scores, feature_importance, grid
+    return Scores, feature_importance
 
 
 # %%
@@ -779,13 +783,13 @@ param_grid = [{
     'classifier__n_estimators': [100, 500, 1000]
 }]
 
-Scores_base, ImpFeat_base, grid_base = GridPlot(classifier,
-                                                param_grid,
-                                                app_train,
-                                                app_test,
-                                                data_type='base',
-                                                sample=40000,
-                                                imputerize=False)
+Scores_base, ImpFeat_base = GridPlot(classifier,
+                                     param_grid,
+                                     app_train,
+                                     app_test,
+                                     data_type='base',
+                                     sample=40000,
+                                     imputerize=False)
 # %%
 ScoresM_base = Scores_base.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
@@ -816,13 +820,13 @@ fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/BestFeatGrid_base.pdf')
 # %%
-Scores_FE, ImpFeat_FE, grid_FE = GridPlot(classifier,
-                                          param_grid,
-                                          trainfeat_transDF,
-                                          testfeat_transDF,
-                                          data_type='featEng',
-                                          sample=40000,
-                                          imputerize=False)
+Scores_FE, ImpFeat_FE = GridPlot(classifier,
+                                 param_grid,
+                                 trainfeat_transDF,
+                                 testfeat_transDF,
+                                 data_type='featEng',
+                                 sample=40000,
+                                 imputerize=False)
 # %%
 ScoresM_FE = Scores_FE.melt('Modèle').rename(columns={'variable': 'Score'})
 fig = px.bar(
@@ -869,7 +873,7 @@ if write_data is True:
 # L'utilisation de feature polynomiales n'améliore pas significativement nos
 # résultats. Nous allons à présent tester un score plus adapté afin de prendre
 # en compte le coût d'un mauvais classement
-# %%
+# %%
 sampler = [
     RandomUnderSampler(random_state=0),
     RandomOverSampler(random_state=0)
@@ -896,14 +900,14 @@ param_grid = [{
     'classifier__boosting_type': ['gbdt', 'dart', 'rf', 'goss'],
     'classifier__n_estimators': [100, 500, 1000]
 }]
-ScoresF10_base, ImpFeatF10_base, gridF10_base = GridPlot(classifier,
-                                                         param_grid,
-                                                         app_train,
-                                                         app_test,
-                                                         data_type='base',
-                                                         sample=100000,
-                                                         refit='F10',
-                                                         imputerize=False)
+ScoresF10_base, ImpFeatF10_base = GridPlot(classifier,
+                                           param_grid,
+                                           app_train,
+                                           app_test,
+                                           data_type='base',
+                                           sample=40000,
+                                           refit='F10',
+                                           imputerize=False)
 # %%
 ScoresF10M_base = ScoresF10_base.melt('Modèle').rename(
     columns={'variable': 'Score'})
@@ -932,4 +936,36 @@ fig.update_xaxes(matches=None, showticklabels=True)
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/BestFeatGridF10_base.pdf')
+
+# %%
+if write_data is True:
+    app_train[ImpFeatF10_base[(ImpFeatF10_base.value != 0) & (
+        ImpFeatF10_base.Modèle == 'LGBMC/ROS_base')].Feature.to_list()].sample(
+            200000, random_state=0).to_csv('TrainSet.csv')
+    app_test[ImpFeatF10_base[(ImpFeatF10_base.value != 0)
+                             & (ImpFeatF10_base.Modèle == 'LGBMC/ROS_base')].
+             Feature.to_list()].to_csv('TestSet.csv')
+# %%
+X_train, X_test, y_train, y_test = preprocessing(app_train,
+                                                 app_test,
+                                                 imputerize=False)
+model = LGBMClassifier(boosting_type='dart',
+                       device_type='gpu',
+                       objective='binary',
+                       random_state=0,
+                       n_estimators=100)
+# %%
+model.fit(X_train, y_train)
+# %%
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(app_train.drop(columns='TARGET'))
+# %%
+shap.force_plot(explainer.expected_value[1], shap_values[1][0, :],
+                app_train.drop(columns='TARGET').iloc[0, :])
+# %%
+shap.force_plot(explainer.expected_value[1], shap_values[1][:500, :],
+                app_train.drop(columns='TARGET').iloc[:500, :])
+# %%
+shap.summary_plot(shap_values, app_train.drop(columns='TARGET'))
+
 # %%

@@ -10,3 +10,4 @@ imblearn
 xgboost
 lightgbm
 shap
+matplotlib
