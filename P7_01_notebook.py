@@ -485,6 +485,8 @@ fig.update_layout(xaxis_title='False Positive Rate',
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/CurvesROClogreg.pdf')
+
+
 # %% [markdown]
 # Avec TomekLink, la régression logistique classe tout les clients
 # comme ne faisant pas défaut ce que l'on ne veut pas et SMOTENN,
@@ -925,4 +927,32 @@ shap.force_plot(explainer.expected_value[1], shap_values[1][:500, :],
 # %%
 shap.summary_plot(shap_values, app_train.drop(columns='TARGET'))
 
+# %%
+prec, rec, thresh = precision_recall_curve(y_test,
+                                           model.predict_proba(X_test)[:, 1])
+
+# %%
+fig = px.line(x=rec,
+              y=prec,
+              labels={
+                  'x': 'Recall',
+                  'y': 'Precision'
+              },
+              title='Courbe Precision-Recall')
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/PRCurve.pdf')
+# %%
+fig = px.line(x=thresh,
+              y=[rec[:-1], prec[:-1]],
+              labels={'x': 'Threshold'},
+              title='Precision et recall en fonction du threshold')
+newnames = {'wide_variable_0': 'Recall', 'wide_variable_1': 'Precision'}
+fig.for_each_trace(lambda t: t.update(name=newnames[t.name],
+                                      legendgroup=newnames[t.name],
+                                      hovertemplate=t.hovertemplate.replace(
+                                          t.name, newnames[t.name])))
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/PRThreshCurve.pdf')
 # %%
