@@ -12,9 +12,8 @@ from sklearn.preprocessing import LabelEncoder, PolynomialFeatures, MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import roc_curve, auc, confusion_matrix, roc_auc_score, \
-    make_scorer, fbeta_score
+    make_scorer, fbeta_score, precision_recall_curve
 from sklearn.model_selection import GridSearchCV
 
 from xgboost import XGBClassifier
@@ -26,8 +25,6 @@ from imblearn.combine import SMOTEENN, SMOTETomek
 from imblearn.pipeline import Pipeline
 
 import shap
-
-shap.initjs()
 # %%
 write_data = True
 
@@ -494,50 +491,6 @@ if write_data is True:
 # permet un classement naïf 50/50 qui ne reflète pas non plus la
 # réalité
 # %%
-sampler = [
-    RandomUnderSampler(random_state=0),
-    TomekLinks(n_jobs=-1),
-    RandomOverSampler(random_state=0),
-    SMOTE(random_state=0, n_jobs=-1),
-    SMOTEENN(random_state=0, n_jobs=-1),
-    SMOTETomek(random_state=0, n_jobs=-1)
-]
-
-param_grid = [{
-    'sampling': sampler,
-    'classifier': [LogisticRegression(max_iter=1000, random_state=0)]
-}, {
-    'sampling': sampler,
-    'classifier': [RandomForestClassifier(n_jobs=-1, random_state=0)],
-    'classifier__n_estimators': [100, 500, 1000]
-}, {
-    'sampling': sampler,
-    'classifier': [GradientBoostingClassifier(random_state=0)],
-    'classifier__loss': ['deviance', 'exponential'],
-    'classifier__n_estimators': [100, 500, 1000]
-}, {
-    'sampling':
-    sampler,
-    'classifier': [
-        XGBClassifier(tree_method='gpu_hist',
-                      gpu_id=0,
-                      objective='binary:logistic',
-                      eval_metric='auc',
-                      use_label_encoder=False,
-                      random_state=0)
-    ]
-}, {
-    'sampling':
-    sampler,
-    'classifier': [LGBMClassifier(objective='binary', random_state=0)],
-    'classifier__boosting_type': ['gbdt', 'dart', 'rf', 'goss'],
-    'classifier__n_estimators': [100, 500, 1000]
-}]
-
-classifier = Pipeline([('sampling', 'passthrough'),
-                       ('classifier', 'passthrough')])
-
-
 def GridPlot(classifier,
              param_grid,
              train,
@@ -580,7 +533,7 @@ def GridPlot(classifier,
                                 'Precision': 'precision_weighted',
                                 'Recall': 'recall_weighted',
                                 'F1': 'f1_weighted',
-                                'F10': make_scorer(fbeta_score, beta=.1)
+                                'F05': make_scorer(fbeta_score, beta=.5)
                             },
                             refit=refit,
                             n_jobs=-1)
@@ -598,8 +551,8 @@ def GridPlot(classifier,
             grid.cv_results_['mean_test_Recall'][grid.best_index_]))
         print('F1 : {}'.format(
             grid.cv_results_['mean_test_F1'][grid.best_index_]))
-        print('F10 : {}'.format(
-            grid.cv_results_['mean_test_F10'][grid.best_index_]))
+        print('F05 : {}'.format(
+            grid.cv_results_['mean_test_F05'][grid.best_index_]))
 
         fpr, tpr, thresholds = roc_curve(y_test, grid_proba[:, 1])
         name = '{} - {}<br>(AUC={})'.format(
@@ -654,8 +607,8 @@ def GridPlot(classifier,
                     grid.cv_results_['mean_test_Recall'][grid.best_index_],
                     'F1':
                     grid.cv_results_['mean_test_F1'][grid.best_index_],
-                    'F10':
-                    grid.cv_results_['mean_test_F10'][grid.best_index_]
+                    'F05':
+                    grid.cv_results_['mean_test_F05'][grid.best_index_]
                 },
                 index=[idx])
         ])
@@ -752,6 +705,9 @@ def GridPlot(classifier,
 
 
 # %%
+classifier = Pipeline([('sampling', 'passthrough'),
+                       ('classifier', 'passthrough')])
+
 sampler = [
     RandomUnderSampler(random_state=0),
     RandomOverSampler(random_state=0),
@@ -897,21 +853,21 @@ param_grid = [{
                        device_type='gpu',
                        verbose=0)
     ],
-    'classifier__boosting_type': ['gbdt', 'dart', 'rf', 'goss'],
+    'classifier__boosting_type': ['dart'],
     'classifier__n_estimators': [100, 500, 1000]
 }]
-ScoresF10_base, ImpFeatF10_base = GridPlot(classifier,
+ScoresF05_base, ImpFeatF05_base = GridPlot(classifier,
                                            param_grid,
                                            app_train,
                                            app_test,
                                            data_type='base',
                                            sample=40000,
-                                           refit='F10',
+                                           refit='F05',
                                            imputerize=False)
 # %%
-ScoresF10M_base = ScoresF10_base.melt('Modèle').rename(
+ScoresF05M_base = ScoresF05_base.melt('Modèle').rename(
     columns={'variable': 'Score'})
-fig = px.bar(ScoresF10M_base,
+fig = px.bar(ScoresF05M_base,
              x='Score',
              y='value',
              color='Modèle',
@@ -919,11 +875,11 @@ fig = px.bar(ScoresF10M_base,
              title='Scores')
 fig.show(renderer='notebook')
 if write_data is True:
-    fig.write_image('./Figures/ScoresGridF10_base.pdf')
+    fig.write_image('./Figures/ScoresGridF05_base.pdf')
 # %%
-PlotDF_ImpFeatF10_base = ImpFeatF10_base.sort_values(
+PlotDF_ImpFeatF05_base = ImpFeatF05_base.sort_values(
     by='value', ascending=False).groupby('Modèle').head(10)
-fig = px.bar(PlotDF_ImpFeatF10_base,
+fig = px.bar(PlotDF_ImpFeatF05_base,
              x='value',
              y='Feature',
              orientation='h',
@@ -935,15 +891,15 @@ fig.update_yaxes(matches=None)
 fig.update_xaxes(matches=None, showticklabels=True)
 fig.show(renderer='notebook')
 if write_data is True:
-    fig.write_image('./Figures/BestFeatGridF10_base.pdf')
+    fig.write_image('./Figures/BestFeatGridF05_base.pdf')
 
 # %%
 if write_data is True:
-    app_train[ImpFeatF10_base[(ImpFeatF10_base.value != 0) & (
-        ImpFeatF10_base.Modèle == 'LGBMC/ROS_base')].Feature.to_list()].sample(
+    app_train[ImpFeatF05_base[(ImpFeatF05_base.value != 0) & (
+        ImpFeatF05_base.Modèle == 'LGBMC/ROS_base')].Feature.to_list()].sample(
             200000, random_state=0).to_csv('TrainSet.csv')
-    app_test[ImpFeatF10_base[(ImpFeatF10_base.value != 0)
-                             & (ImpFeatF10_base.Modèle == 'LGBMC/ROS_base')].
+    app_test[ImpFeatF05_base[(ImpFeatF05_base.value != 0)
+                             & (ImpFeatF05_base.Modèle == 'LGBMC/ROS_base')].
              Feature.to_list()].to_csv('TestSet.csv')
 # %%
 X_train, X_test, y_train, y_test = preprocessing(app_train,
@@ -953,10 +909,11 @@ model = LGBMClassifier(boosting_type='dart',
                        device_type='gpu',
                        objective='binary',
                        random_state=0,
-                       n_estimators=100)
+                       n_estimators=1000)
 # %%
 model.fit(X_train, y_train)
 # %%
+shap.initjs()
 explainer = shap.TreeExplainer(model)
 shap_values = explainer.shap_values(app_train.drop(columns='TARGET'))
 # %%
