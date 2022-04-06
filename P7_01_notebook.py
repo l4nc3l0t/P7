@@ -13,7 +13,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc, confusion_matrix, roc_auc_score, \
-    make_scorer, fbeta_score, precision_recall_curve
+    make_scorer, fbeta_score, precision_recall_curve, precision_score, recall_score, \
+        f1_score
 from sklearn.model_selection import GridSearchCV
 
 from xgboost import XGBClassifier
@@ -535,7 +536,7 @@ def GridPlot(classifier,
                                 'Precision': 'precision_weighted',
                                 'Recall': 'recall_weighted',
                                 'F1': 'f1_weighted',
-                                'F05': make_scorer(fbeta_score, beta=.5)
+                                'F2': make_scorer(fbeta_score, beta=2)
                             },
                             refit=refit,
                             n_jobs=-1)
@@ -553,8 +554,8 @@ def GridPlot(classifier,
             grid.cv_results_['mean_test_Recall'][grid.best_index_]))
         print('F1 : {}'.format(
             grid.cv_results_['mean_test_F1'][grid.best_index_]))
-        print('F05 : {}'.format(
-            grid.cv_results_['mean_test_F05'][grid.best_index_]))
+        print('F2 : {}'.format(
+            grid.cv_results_['mean_test_F2'][grid.best_index_]))
 
         fpr, tpr, thresholds = roc_curve(y_test, grid_proba[:, 1])
         name = '{} - {}<br>(AUC={})'.format(
@@ -609,8 +610,8 @@ def GridPlot(classifier,
                     grid.cv_results_['mean_test_Recall'][grid.best_index_],
                     'F1':
                     grid.cv_results_['mean_test_F1'][grid.best_index_],
-                    'F05':
-                    grid.cv_results_['mean_test_F05'][grid.best_index_]
+                    'F2':
+                    grid.cv_results_['mean_test_F2'][grid.best_index_]
                 },
                 index=[idx])
         ])
@@ -858,18 +859,18 @@ param_grid = [{
     'classifier__boosting_type': ['dart'],
     'classifier__n_estimators': [100, 500, 1000]
 }]
-ScoresF05_base, ImpFeatF05_base = GridPlot(classifier,
-                                           param_grid,
-                                           app_train,
-                                           app_test,
-                                           data_type='base',
-                                           sample=40000,
-                                           refit='F05',
-                                           imputerize=False)
+ScoresF2_base, ImpFeatF2_base = GridPlot(classifier,
+                                         param_grid,
+                                         app_train,
+                                         app_test,
+                                         data_type='base',
+                                         sample=40000,
+                                         refit='F2',
+                                         imputerize=False)
 # %%
-ScoresF05M_base = ScoresF05_base.melt('Modèle').rename(
+ScoresF2M_base = ScoresF2_base.melt('Modèle').rename(
     columns={'variable': 'Score'})
-fig = px.bar(ScoresF05M_base,
+fig = px.bar(ScoresF2M_base,
              x='Score',
              y='value',
              color='Modèle',
@@ -877,11 +878,11 @@ fig = px.bar(ScoresF05M_base,
              title='Scores')
 fig.show(renderer='notebook')
 if write_data is True:
-    fig.write_image('./Figures/ScoresGridF05_base.pdf')
+    fig.write_image('./Figures/ScoresGridF2_base.pdf')
 # %%
-PlotDF_ImpFeatF05_base = ImpFeatF05_base.sort_values(
+PlotDF_ImpFeatF2_base = ImpFeatF2_base.sort_values(
     by='value', ascending=False).groupby('Modèle').head(10)
-fig = px.bar(PlotDF_ImpFeatF05_base,
+fig = px.bar(PlotDF_ImpFeatF2_base,
              x='value',
              y='Feature',
              orientation='h',
@@ -893,27 +894,34 @@ fig.update_yaxes(matches=None)
 fig.update_xaxes(matches=None, showticklabels=True)
 fig.show(renderer='notebook')
 if write_data is True:
-    fig.write_image('./Figures/BestFeatGridF05_base.pdf')
+    fig.write_image('./Figures/BestFeatGridF2_base.pdf')
 
 # %%
 if write_data is True:
-    app_train[ImpFeatF05_base[(ImpFeatF05_base.value != 0) & (
-        ImpFeatF05_base.Modèle == 'LGBMC/ROS_base')].Feature.to_list()].sample(
+    app_train[ImpFeatF2_base[(ImpFeatF2_base.value != 0) & (
+        ImpFeatF2_base.Modèle == 'LGBMC/ROS_base')].Feature.to_list()].sample(
             200000, random_state=0).to_csv('TrainSet.csv')
-    app_test[ImpFeatF05_base[(ImpFeatF05_base.value != 0)
-                             & (ImpFeatF05_base.Modèle == 'LGBMC/ROS_base')].
+    app_test[ImpFeatF2_base[(ImpFeatF2_base.value != 0)
+                            & (ImpFeatF2_base.Modèle == 'LGBMC/ROS_base')].
              Feature.to_list()].to_csv('TestSet.csv')
 # %%
-X_train, X_test, y_train, y_test = preprocessing(app_train,
-                                                 app_test,
-                                                 imputerize=False)
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaler.fit(app_train.drop(columns='TARGET'))
+train_scal = scaler.transform(app_train.drop(columns='TARGET'))
+
+X_train, X_test, y_train, y_test = train_test_split(train_scal,
+                                                    app_train.TARGET)
+
+ROSamp = RandomOverSampler(random_state=0)
+X_samp, y_samp = ROSamp.fit_resample(X_train, y_train)
+
 model = LGBMClassifier(boosting_type='dart',
                        device_type='gpu',
                        objective='binary',
                        random_state=0,
-                       n_estimators=1000)
+                       n_estimators=100)
 # %%
-model.fit(X_train, y_train)
+model.fit(X_samp, y_samp)
 # %%
 shap.initjs()
 explainer = shap.TreeExplainer(model)
@@ -928,8 +936,10 @@ shap.force_plot(explainer.expected_value[1], shap_values[1][:500, :],
 shap.summary_plot(shap_values, app_train.drop(columns='TARGET'))
 
 # %%
-prec, rec, thresh = precision_recall_curve(y_test,
-                                           model.predict_proba(X_test)[:, 1])
+model_pred = model.predict(X_test)
+model_proba = model.predict_proba(X_test)[:, 1]
+fpr, tpr, ROCthresh = roc_curve(y_test, model_proba)
+prec, rec, PRthresh = precision_recall_curve(y_test, model_proba)
 
 # %%
 fig = px.line(x=rec,
@@ -943,7 +953,7 @@ fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/PRCurve.pdf')
 # %%
-fig = px.line(x=thresh,
+fig = px.line(x=PRthresh,
               y=[rec[:-1], prec[:-1]],
               labels={'x': 'Threshold'},
               title='Precision et recall en fonction du threshold')
@@ -955,4 +965,99 @@ fig.for_each_trace(lambda t: t.update(name=newnames[t.name],
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/PRThreshCurve.pdf')
+
+# %%
+fig = px.line(x=fpr,
+              y=tpr,
+              labels={
+                  'x': 'FPR',
+                  'y': 'TPR'
+              },
+              title='Courbe ROC')
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/ROCCurve.pdf')
+# %%
+BestPRthresh = PRthresh[np.argmax(rec - prec)]
+print('Meilleur threshold pour la courbe PR : {}'.format(BestPRthresh))
+# %%
+BestROCthresh = ROCthresh[np.argmax(tpr - fpr)]
+print('Meilleur threshold pour la courbe ROC : {}'.format(BestROCthresh))
+# %%
+ThreshPRPred = np.where(model_proba > BestPRthresh, 1, 0)
+ThreshROCPred = np.where(model_proba > BestROCthresh, 1, 0)
+# %%
+CMfig = px.imshow(
+    confusion_matrix(y_test, ThreshPRPred),
+    x=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+    y=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+    text_auto=True,
+    color_continuous_scale='balance',
+    labels={
+        'x': 'Catégorie prédite',
+        'y': 'Catégorie réelle',
+        'color': 'Nb clients'
+    },
+    title=
+    'Matrice de confusion des prediction du modèle<br>avec un thresholdPR de {}'
+    .format(round(BestPRthresh, 3)))
+
+CMfig.update_layout(plot_bgcolor='white')
+CMfig.update_coloraxes(showscale=False)
+CMfig.show(renderer='notebook')
+
+# %%
+CMfig = px.imshow(
+    confusion_matrix(y_test, ThreshROCPred),
+    x=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+    y=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+    text_auto=True,
+    color_continuous_scale='balance',
+    labels={
+        'x': 'Catégorie prédite',
+        'y': 'Catégorie réelle',
+        'color': 'Nb clients'
+    },
+    title=
+    'Matrice de confusion des prediction du modèle<br>avec un thresholdROC de {}'
+    .format(round(BestROCthresh, 3)))
+
+CMfig.update_layout(plot_bgcolor='white')
+CMfig.update_coloraxes(showscale=False)
+CMfig.show(renderer='notebook')
+# %%
+scores = {
+    'AUC': [
+        roc_auc_score(y_test, model_proba),
+        roc_auc_score(y_test, model_proba),
+        roc_auc_score(y_test, model_proba)
+    ],
+    'Precision': [
+        precision_score(y_test, model_pred),
+        precision_score(y_test, ThreshPRPred),
+        precision_score(y_test, ThreshROCPred)
+    ],
+    'Recall': [
+        recall_score(y_test, model_pred),
+        recall_score(y_test, ThreshPRPred),
+        recall_score(y_test, ThreshROCPred)
+    ],
+    'F1': [
+        f1_score(y_test, model_pred),
+        f1_score(y_test, ThreshPRPred),
+        f1_score(y_test, ThreshROCPred)
+    ],
+    'F2': [
+        fbeta_score(y_test, model_pred, beta=2),
+        fbeta_score(y_test, ThreshPRPred, beta=2),
+        fbeta_score(y_test, ThreshROCPred, beta=2)
+    ]
+}
+
+# %%
+scores_thresh = pd.DataFrame.from_dict(
+    scores,
+    orient='index',
+    columns=['thresh_05', 'threshPR_opt', 'threshROC_opt'])
+
 # %%
