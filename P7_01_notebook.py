@@ -983,9 +983,31 @@ print('Meilleur threshold pour la courbe PR : {}'.format(BestPRthresh))
 # %%
 BestROCthresh = ROCthresh[np.argmax(tpr - fpr)]
 print('Meilleur threshold pour la courbe ROC : {}'.format(BestROCthresh))
+
+# %%
+F2 = []
+for t in np.arange(0, 1, .001):
+    threshpred = np.where(model_proba > t, 1, 0)
+    F2.append(fbeta_score(y_test, threshpred, beta=2))
+BestF2thresh = np.arange(0, 1, .001)[np.argmax(F2)]
+print('Meilleur threshold de {} pour un score F2 de {}'.format(
+    BestF2thresh, round(max(F2), 3)))
+
+# %%
+fig = px.line(x=np.arange(0, 1, .001),
+              y=F2,
+              labels={
+                  'x': 'Threshold',
+                  'y': 'score F2'
+              },
+              title='Courbe du score F2 en fonction du threshold')
+fig.show(renderer='notebook')
+if write_data is True:
+    fig.write_image('./Figures/F2ThreshCurve.pdf')
 # %%
 ThreshPRPred = np.where(model_proba > BestPRthresh, 1, 0)
 ThreshROCPred = np.where(model_proba > BestROCthresh, 1, 0)
+ThreshF2Pred = np.where(model_proba > BestF2thresh, 1, 0)
 # %%
 CMfig = px.imshow(
     confusion_matrix(y_test, ThreshPRPred),
@@ -1026,8 +1048,28 @@ CMfig.update_layout(plot_bgcolor='white')
 CMfig.update_coloraxes(showscale=False)
 CMfig.show(renderer='notebook')
 # %%
+CMfig = px.imshow(
+    confusion_matrix(y_test, ThreshF2Pred),
+    x=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+    y=['Pas de défaut<br>de paiement', 'Défaut de<br>paiement'],
+    text_auto=True,
+    color_continuous_scale='balance',
+    labels={
+        'x': 'Catégorie prédite',
+        'y': 'Catégorie réelle',
+        'color': 'Nb clients'
+    },
+    title=
+    'Matrice de confusion des prediction du modèle<br>avec un thresholdF2 de {}'
+    .format(round(BestF2thresh, 3)))
+
+CMfig.update_layout(plot_bgcolor='white')
+CMfig.update_coloraxes(showscale=False)
+CMfig.show(renderer='notebook')
+# %%
 scores = {
     'AUC': [
+        roc_auc_score(y_test, model_proba),
         roc_auc_score(y_test, model_proba),
         roc_auc_score(y_test, model_proba),
         roc_auc_score(y_test, model_proba)
@@ -1035,22 +1077,26 @@ scores = {
     'Precision': [
         precision_score(y_test, model_pred),
         precision_score(y_test, ThreshPRPred),
-        precision_score(y_test, ThreshROCPred)
+        precision_score(y_test, ThreshROCPred),
+        precision_score(y_test, ThreshF2Pred)
     ],
     'Recall': [
         recall_score(y_test, model_pred),
         recall_score(y_test, ThreshPRPred),
-        recall_score(y_test, ThreshROCPred)
+        recall_score(y_test, ThreshROCPred),
+        recall_score(y_test, ThreshF2Pred)
     ],
     'F1': [
         f1_score(y_test, model_pred),
         f1_score(y_test, ThreshPRPred),
-        f1_score(y_test, ThreshROCPred)
+        f1_score(y_test, ThreshROCPred),
+        f1_score(y_test, ThreshF2Pred)
     ],
     'F2': [
         fbeta_score(y_test, model_pred, beta=2),
         fbeta_score(y_test, ThreshPRPred, beta=2),
-        fbeta_score(y_test, ThreshROCPred, beta=2)
+        fbeta_score(y_test, ThreshROCPred, beta=2),
+        fbeta_score(y_test, ThreshF2Pred, beta=2)
     ]
 }
 
@@ -1058,6 +1104,5 @@ scores = {
 scores_thresh = pd.DataFrame.from_dict(
     scores,
     orient='index',
-    columns=['thresh_05', 'threshPR_opt', 'threshROC_opt'])
-
-# %%
+    columns=['thresh_05', 'threshPR_opt', 'threshROC_opt', 'threshF2_opt'])
+scores_thresh
