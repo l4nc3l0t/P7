@@ -1,0 +1,79 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage{polyglossia}
+	\setdefaultlanguage{french}
+\usepackage{fontspec}
+	\setmainfont{TeX Gyre Termes}
+\usepackage[top=2.5cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage[unicode=true,
+%            colorlinks=true,
+%            citecolor={green!50!black},
+%            urlcolor=blue,
+            hidelinks
+            ]{hyperref}
+
+\begin{document}
+
+\date{mai 2022}
+\begin{titlepage}
+    \large{\textsc{Leclercq} Lancelot} \hfill \normalsize{Avril 2022}
+    \vfill
+    \begin{center}
+        %\vspace{1cm}
+        \huge{Note méthodologique}\\
+        \vfill
+        \includegraphics[width=.3\textwidth]{logoPAD.png}\\
+    \end{center}
+    \vfill
+    \renewcommand{\contentsname}{Sommaire}
+    \pdfbookmark{\contentsname}{toc}
+    \tableofcontents
+\end{titlepage}
+
+\section{Introduction}
+
+L'entreprise Prêt à dépenser souhaite utiliser un outil de "scoring" afin de calculer la probabilité qu'un client fasse ou non défaut lors du remboursement de son crédit. Pour cela nous devons entrainer un modèle de classification sur des données variées (comportementales, autres institutions financières, etc).
+
+\section{Classification}
+\subsection{Jeu de donées}
+
+Afin de mieux comprendre les données nous avons procédé à une analyse exploratoire des données sur le jeu application\_train.csv. Pour l'entrainement du modèle nous utiliserons uniquement ces données car l'utilisation des fichiers supplémentaires demande beaucoup de ressources tant en temps d'analyse et d'exploration des données qu'en capacitées de calculs. Nous utiliserons le fichier application\_test.csv pour le dashboard.
+
+\subsection{"Feature engeneering"}
+
+
+
+\subsection{Déséquilibre des valeurs cible}
+
+
+
+\subsection{Modèles}
+
+
+
+\section{Évaluation, optimisation et coût métier}
+
+
+
+\section{Interprétabilité}
+
+
+
+\subsection{Globale}
+
+
+
+\subsection{Locale}
+
+
+
+\section{Limites et améliorations}
+
+
+
+\section{Conclusion}
+
+
+
+\end{document}
