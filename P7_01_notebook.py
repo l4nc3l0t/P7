@@ -110,7 +110,7 @@ app_test = pd.get_dummies(app_test, dummy_na=True)
 print('Dimensions train : {}'.format(app_train.shape))
 print('Dimensions test : {}'.format(app_test.shape))
 # %%
-app_train, app_test = app_train.align(app_test, axis=1, fill_value=0)
+app_train, app_test = app_train.align(app_test, axis=1, fill_value=np.nan)
 app_test.drop(columns='TARGET', inplace=True)
 # %%
 print('Dimensions train : {}'.format(app_train.shape))
