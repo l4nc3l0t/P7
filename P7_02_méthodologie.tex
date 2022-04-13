@@ -33,20 +33,43 @@
 
 \section{Introduction}
 
-L'entreprise Prêt à dépenser souhaite utiliser un outil de "scoring" afin de calculer la probabilité qu'un client fasse ou non défaut lors du remboursement de son crédit. Pour cela nous devons entrainer un modèle de classification sur des données variées (comportementales, autres institutions financières, etc).
+L'entreprise Prêt à dépenser souhaite utiliser un outil de "scoring" afin de calculer la probabilité qu'un client fasse ou non défaut lors du remboursement de son crédit.
+Pour cela nous devons entrainer un modèle de classification sur des données variées (comportementales, autres institutions financières, etc).
 
 \section{Classification}
 \subsection{Jeu de donées}
 
-Afin de mieux comprendre les données nous avons procédé à une analyse exploratoire des données sur le jeu application\_train.csv. Pour l'entrainement du modèle nous utiliserons uniquement ces données car l'utilisation des fichiers supplémentaires demande beaucoup de ressources tant en temps d'analyse et d'exploration des données qu'en capacitées de calculs. Nous utiliserons le fichier application\_test.csv pour le dashboard.
+Afin de mieux comprendre les données nous avons procédé à une analyse exploratoire des données sur le jeu application\_train.csv.
+Pour l'entrainement du modèle nous utiliserons uniquement ces données car l'utilisation des fichiers supplémentaires demande beaucoup de ressources tant en temps d'analyse et d'exploration des données qu'en capacitées de calculs.
+Nous utiliserons le fichier application\_test.csv pour le dashboard.
 
 \subsection{"Feature engeneering"}
 
+Calcul de variables polynomiales à partir des meilleurs variables (EXT\_SOURCES).
+Il n'y a pas d'amélioration significative des résultats (Fig. \ref{fig:ScoresGridFull})
 
+\begin{figure}[h]
+    \begin{center}
+        \includegraphics[width=\textwidth]{./Figures/ScoresGridfull.pdf}
+    \end{center}
+    \caption{Comparaisons des différents scores avec (\_featEng) et sans (\_base) variables polynomiales}
+    \label{fig:ScoresGridFull}
+\end{figure}
 
 \subsection{Déséquilibre des valeurs cible}
 
+Du fait d'un déséquilibre dans les valeurs cible il est difficile pour le modèle de classer efficacement les clients (Fig. \ref{fig:DéséquilibreCible}).
 
+\begin{figure}[h]
+    \begin{center}
+        \includegraphics[width=\textwidth]{./Figures/DéséquilibreCible.pdf}
+    \end{center}
+    \caption{Diagramme circulaire illustrant le déséquilibre des types de clients dans la colonne cible}
+    \label{fig:DéséquilibreCible}
+\end{figure}
+
+Lors de l'optimisation du score AUC le modèle va préférer classer tout les clients comme ne faisant pas défaut car cela amériorera sont score.
+Nous avons donc dû rééquilibrer la part des valeurs cible grace à la librairie imblearn.
 
 \subsection{Modèles}
 
@@ -54,19 +77,31 @@ Afin de mieux comprendre les données nous avons procédé à une analyse explor
 
 \section{Évaluation, optimisation et coût métier}
 
+\subsection{Courbe ROC et aire sous la courbe (AUC)}
 
+\subsection{GridSearch}
+
+\subsection{Coût métier}
 
 \section{Interprétabilité}
 
-
+Dans un soucis de transparence nous souhaitons pouvoir expliquer comment fonctionnent nos modèles
 
 \subsection{Globale}
 
+L'étude des principales variables utilisées par le modèle permet de mieux comprendre son fonctionnement global (Fig. \ref{fig:BestFeat})
 
+\begin{figure}[h]
+    \begin{center}
+        \includegraphics[width=\textwidth]{./Figures/BestFeatGridF2_base.pdf}
+    \end{center}
+    \caption{Principales variables selon leur importance dans l'entrainement des modèles}
+    \label{fig:BestFeat}
+\end{figure}
 
 \subsection{Locale}
 
-
+La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variables dans le classement d'un client en particulier.
 
 \section{Limites et améliorations}
 
