@@ -163,6 +163,13 @@ px.histogram(
     title=
     "Histogramme du nombre de clients en fonction<br>de leur nombre d'années d'emploi"
 ).show(renderer='notebook')
+# %%
+fig = px.pie(values=app_train.TARGET.value_counts(),
+             names=['Clients ne faisant pas défaut', 'Clients faisant défaut'],
+             title='Part de clients faisant ou non défaut<br>dans la colonne cible (TARGET)')
+fig.show()
+if write_data is True:
+    fig.write_image('./Figures/DéséquilibreCible.pdf')
 # %%
 target_corr = app_train.corr().TARGET
 # %%
