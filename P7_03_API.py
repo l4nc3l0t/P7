@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+import json
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.model_selection import train_test_split
@@ -80,16 +81,19 @@ def run_model():
 
 @app.route("/ID_clients", methods=["GET"])
 def ID_clients():
-    return id_clients.to_json(orient='values')
+    return jsonify(json.loads(id_clients.to_json(orient='values')))
 
 
 @app.route("/infos_client", methods=["GET"])
 def show_data():
-    ID_client = request.args.get("id_client")
-    data_client = data_test[data_test.SK_ID_CURR == int(ID_client)]
+    ID_client = request.args.get("id")
+    data_client = data_test[data_test.SK_ID_CURR == int(ID_client)].set_index(
+        'SK_ID_CURR')
     print(data_client)
-    data_reponse = data_client.to_json(orient='index')
-    return data_reponse
+    data_reponse = json.loads(data_client.to_json(orient='index'))
+    print(data_reponse)
+    return jsonify(data_reponse)
+
 
 if __name__ == "__main__":
     app.run(host="localhost", debug=True)
