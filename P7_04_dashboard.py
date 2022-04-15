@@ -27,20 +27,25 @@ app.layout = html.Div([
         'ID client :',
         dcc.Dropdown(get_id_list(), get_id_list()[0], id='ID_choosed')
     ]),
-    html.Div(
-        ['Informations client :',
-         dash_table.DataTable(id='infos_client')])
+    html.Div(['Informations client :',
+              dash_table.DataTable(id='table')]),
+    dcc.Store(id='infos_client')
 ])
 
 
-@app.callback(Output('infos_client', 'data'), Output('infos_client', 'col'),
-              Input('ID_choosed', 'value'))
+@app.callback(Output('infos_client', 'data'), Input('ID_choosed', 'value'))
 def get_client_infos(value):
-    data = requests.get(URL_API + 'ID_clients/infos_client?=' +
-                        str(value)).json()
-    print(data)
-    df = pd.DataFrame(data).reset_index().rename(columns={'index':'variable'})
-    col = df.columns
+    url = URL_API + 'ID_clients/infos_client?id=' + str(value)
+    data = requests.get(url).json()
+    return data
+
+
+@app.callback(Output('table', 'data'), Output('table', 'columns'),
+              Input('infos_client', 'data'))
+def table(data_client):
+    df = pd.DataFrame(data_client).reset_index().rename(
+        columns={'index': 'variable'})
+    col = [{"name": i, "id": i} for i in df.columns]
     values = df.to_dict('records')
     print(col)
     print(values)
