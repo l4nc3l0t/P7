@@ -10,11 +10,9 @@ from lightgbm import LGBMClassifier
 app = Flask(__name__)
 
 data_train = pd.read_csv('./application_train.csv')
+app_train = data_train.copy()
 data_test = pd.read_csv('./application_test.csv')
-id_clients = data_test.SK_ID_CURR
-
-data_train = pd.read_csv('./application_train.csv')
-data_test = pd.read_csv('./application_test.csv')
+app_test = data_test.copy()
 id_clients = data_test.SK_ID_CURR
 # encodage des colonnes catégorielles à 2 catégories
 le = LabelEncoder()
@@ -69,15 +67,15 @@ model = LGBMClassifier(boosting_type='dart',
 model.fit(X_samp, y_samp)
 
 
-@app.route("/ID_clients", methods=["GET"])
+@app.route("/ID_clients/", methods=["GET"])
 def ID_clients():
     return jsonify(json.loads(id_clients.to_json(orient='values')))
 
-# http://localhost:5000/infos_client?id=100001
-@app.route("/infos_client", methods=["GET"])
+# http://localhost:5000/ID_clients/infos_client?id=100001
+@app.route("/ID_clients/infos_client/", methods=["GET"])
 def show_data():
-    ID_client = request.args.get("id")
-    data_client = data_test[data_test.SK_ID_CURR == int(ID_client)].set_index(
+    ID_client = request.args.get("id", default=100001, type=int)
+    data_client = app_test[app_test.SK_ID_CURR == int(ID_client)].set_index(
         'SK_ID_CURR')
     print(data_client)
     data_reponse = json.loads(data_client.to_json(orient='index'))
@@ -85,7 +83,7 @@ def show_data():
     return jsonify(data_reponse)
 
 # http://localhost:5000/predict?id=100001
-@app.route("/predict", methods=["GET"])
+@app.route("/predict/", methods=["GET"])
 def model_pred():
     ID_client = request.args.get("id")
     index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
