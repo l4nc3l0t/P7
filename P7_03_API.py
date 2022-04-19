@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler
 from lightgbm import LGBMClassifier
+import shap
 
 app = Flask(__name__)
 
@@ -60,16 +61,20 @@ ROSamp = RandomOverSampler(random_state=0)
 X_samp, y_samp = ROSamp.fit_resample(X_train, y_train)
 
 model = LGBMClassifier(boosting_type='dart',
-                       device_type='gpu',
                        objective='binary',
                        random_state=0,
                        n_estimators=100)
 model.fit(X_samp, y_samp)
 
+# explication modèle
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(data_test)
+
 
 @app.route("/ID_clients/", methods=["GET"])
 def ID_clients():
     return jsonify(json.loads(id_clients.to_json(orient='values')))
+
 
 # http://localhost:5000/ID_clients/infos_client?id=100001
 @app.route("/ID_clients/infos_client/", methods=["GET"])
@@ -82,19 +87,45 @@ def show_data():
     print(data_reponse)
     return jsonify(data_reponse)
 
+
 # http://localhost:5000/predict?id=100001
 @app.route("/predict/", methods=["GET"])
 def model_pred():
-    ID_client = request.args.get("id")
+    ID_client = request.args.get("id").split('/')[0]
     index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
-    proba = float(model.predict_proba(test_scal[index])[:,1])
+    proba = float(model.predict_proba(test_scal[index])[:, 1])
     pred = int(model.predict(test_scal[index]))
     result = {
-        'ID': int(data_test[data_test.SK_ID_CURR == int(ID_client)].SK_ID_CURR),
+        'ID':
+        int(data_test[data_test.SK_ID_CURR == int(ID_client)].SK_ID_CURR),
         'proba_defaut': proba,
         'prediction': pred
     }
     return jsonify(result)
+
+
+@app.route("/explaination/explainer/", methods=["GET"])
+def explaination():
+    ID_client = request.args.get("id").split('/')[0]
+    index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
+    explain = explainer.expected_value[1]
+    return jsonify(explain)
+
+
+@app.route("/explaination/data_shap/", methods=["GET"])
+def data_shap_expl():
+    ID_client = request.args.get("id").split('/')[0]
+    index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
+    data_shap = shap_values[1][index, :].tolist()
+    return jsonify(data_shap)
+
+
+@app.route("/explaination/data_client/", methods=["GET"])
+def data_client_test():
+    ID_client = request.args.get("id").split('/')[0]
+    index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
+    data_client = json.loads(data_test.iloc[index, :].to_json(orient='index'))
+    return jsonify(data_client)
 
 
 if __name__ == "__main__":
