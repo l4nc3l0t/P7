@@ -61,6 +61,7 @@ ROSamp = RandomOverSampler(random_state=0)
 X_samp, y_samp = ROSamp.fit_resample(X_train, y_train)
 
 model = LGBMClassifier(boosting_type='dart',
+                       device_type='gpu',
                        objective='binary',
                        random_state=0,
                        n_estimators=100)
