@@ -8,7 +8,6 @@ import numpy as np
 import plotly.express as px
 
 import shap
-shap.initjs()
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -21,7 +20,7 @@ URL_API = 'http://localhost:5000/'
 
 
 def get_id_list():
-    ID_list = requests.get(URL_API + 'ID_clients').json()
+    ID_list = requests.get(URL_API + 'ID_clients/').json()
     return ID_list
 
 
@@ -49,13 +48,14 @@ app.layout = html.Div([
                 dcc.Store(id='infos_client')
             ],
                     justify="center"))
-    ])
+    ]),
+    dbc.Row([html.Div(id='infos_shap')])
 ])
 
 
 @app.callback(Output('infos_client', 'data'), Input('ID_choosed', 'value'))
 def get_client_infos(idclient):
-    url = URL_API + 'ID_clients/infos_client?id=' + str(idclient)
+    url = URL_API + 'ID_clients/infos_client/?id=' + str(idclient)
     data = requests.get(url).json()
     return data
 
@@ -67,14 +67,12 @@ def table(data_client):
         columns={'index': 'variable'})
     col = [{"name": i, "id": i} for i in df.columns]
     values = df.to_dict('records')
-    print(col)
-    print(values)
     return [values, col]
 
 
 @app.callback(Output('prediction', 'data'), Input('ID_choosed', 'value'))
 def get_prediction(idclient):
-    url = URL_API + 'predict?id=' + str(idclient)
+    url = URL_API + 'predict/?id=' + str(idclient)
     prediction = requests.get(url).json()
     return prediction
 
@@ -82,13 +80,35 @@ def get_prediction(idclient):
 @app.callback(Output('tablepred', 'data'), Output('tablepred', 'columns'),
               Input('prediction', 'data'))
 def table(prediction):
-    df = pd.DataFrame(prediction,
-                      index=['a'])
+    df = pd.DataFrame(prediction, index=['a'])
     col = [{"name": i, "id": i} for i in df.columns]
     values = df.to_dict('records')
-    print(col)
-    print(values)
     return [values, col]
+
+
+@app.callback(Output('infos_shap', 'children'), Input('ID_choosed', 'value'))
+def get_shap_infos(idclient):
+    shap.initjs()
+    url = URL_API + 'explaination/explainer/?id=' + str(idclient)
+    explain = requests.get(url).json()
+    url = URL_API + 'explaination/data_shap/?id=' + str(idclient)
+    data_shap = requests.get(url).json()
+    url = URL_API + 'explaination/data_client/?id=' + str(idclient)
+    data_client = requests.get(url).json()
+    print(list(data_client.keys())[0])
+    df_client = pd.DataFrame(data_client[list(data_client.keys())[0]], index=[0])
+    print(df_client)
+    force_plot = shap.force_plot(explain,
+                                 np.array(data_shap[0]),
+                                 df_client,
+                                 matplotlib=False)
+    shap_html = f"<head>{shap.getjs()}</head><body>{force_plot.html()}</body>"
+    return html.Iframe(srcDoc=shap_html,
+                       style={
+                           "width": "100%",
+                           "height": "200px",
+                           "border": 0
+                       })
 
 
 if __name__ == '__main__':
