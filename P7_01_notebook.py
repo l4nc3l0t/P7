@@ -164,9 +164,11 @@ px.histogram(
     "Histogramme du nombre de clients en fonction<br>de leur nombre d'années d'emploi"
 ).show(renderer='notebook')
 # %%
-fig = px.pie(values=app_train.TARGET.value_counts(),
-             names=['Clients ne faisant pas défaut', 'Clients faisant défaut'],
-             title='Part de clients faisant ou non défaut<br>dans la colonne cible (TARGET)')
+fig = px.pie(
+    values=app_train.TARGET.value_counts(),
+    names=['Clients ne faisant pas défaut', 'Clients faisant défaut'],
+    title=
+    'Part de clients faisant ou non défaut<br>dans la colonne cible (TARGET)')
 fig.show()
 if write_data is True:
     fig.write_image('./Figures/DéséquilibreCible.pdf')
@@ -936,11 +938,48 @@ shap_values = explainer.shap_values(app_train.drop(columns='TARGET'))
 # %%
 shap.force_plot(explainer.expected_value[1], shap_values[1][0, :],
                 app_train.drop(columns='TARGET').iloc[0, :])
+# %%
+if write_data is True:
+    shap.force_plot(explainer.expected_value[1],
+                    shap_values[1][0, :],
+                    app_train.drop(columns='TARGET').iloc[0, :],
+                    matplotlib=True,
+                    show=False)
+    plt.savefig('./Figures/shapForce.pdf', bbox_inches='tight')
+
+
+# %%
+class ShapInput(object):
+
+    def __init__(self, expectation, shap_values, features, feat_names):
+        self.base_values = expectation
+        self.values = shap_values
+        self.data = features
+        self.feature_names = feat_names
+
+
+shap_input = ShapInput(explainer.expected_value[1],
+                       shap_values[1][0, :],
+                       app_train.drop(columns='TARGET').iloc[0, :],
+                       feat_names=app_train.drop(columns='TARGET').columns)
 # %%
-shap.force_plot(explainer.expected_value[1], shap_values[1][:500, :],
-                app_train.drop(columns='TARGET').iloc[:500, :])
+import matplotlib.pyplot as plt
+
+shap.plots._waterfall.plt = plt
+
+shap.waterfall_plot(shap_input)
+if write_data is True:
+    shap.waterfall_plot(shap_input,
+                        show=False).savefig('./Figures/shapWaterfall.pdf',
+                                            bbox_inches='tight')
+
 # %%
 shap.summary_plot(shap_values, app_train.drop(columns='TARGET'))
+if write_data is True:
+    shap.summary_plot(shap_values,
+                      app_train.drop(columns='TARGET'),
+                      show=False)
+    plt.savefig('./Figures/shapSummary.pdf', bbox_inches='tight')
 
 # %%
 model_pred = model.predict(X_test)
