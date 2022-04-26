@@ -972,7 +972,18 @@ if write_data is True:
     shap.waterfall_plot(shap_input,
                         show=False).savefig('./Figures/shapWaterfall.pdf',
                                             bbox_inches='tight')
-
+# %%
+shap.decision_plot(
+    explainer.expected_value[1],
+    shap_values[1][0, :],
+    feature_names=app_train.drop(columns='TARGET').columns.to_list())
+if write_data is True:
+    shap.decision_plot(explainer.expected_value[1],
+                       shap_values[1][0, :],
+                       feature_names=app_train.drop(
+                           columns='TARGET').columns.to_list()).savefig(
+                               './Figures/shapDecision.pdf',
+                               bbox_inches='tight')
 # %%
 shap.summary_plot(shap_values, app_train.drop(columns='TARGET'))
 if write_data is True:
