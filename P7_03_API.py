@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import NearestNeighbors
 from imblearn.over_sampling import RandomOverSampler
 from lightgbm import LGBMClassifier
 import shap
@@ -60,6 +61,7 @@ X_train, X_test, y_train, y_test = train_test_split(train_scal,
 ROSamp = RandomOverSampler(random_state=0)
 X_samp, y_samp = ROSamp.fit_resample(X_train, y_train)
 
+# modèle classification
 model = LGBMClassifier(boosting_type='dart',
                        device_type='gpu',
                        objective='binary',
@@ -70,6 +72,15 @@ model.fit(X_samp, y_samp)
 # explication modèle
 explainer = shap.TreeExplainer(model)
 shap_values = explainer.shap_values(data_test)
+
+# modèle knn
+from sklearn.impute import SimpleImputer
+
+imputer = SimpleImputer()
+X_imp = imputer.fit_transform(X_samp)
+
+knn = NearestNeighbors()
+knn.fit(X_imp)
 
 
 @app.route("/ID_clients/", methods=["GET"])
@@ -92,7 +103,7 @@ def show_data():
 # http://localhost:5000/predict?id=100001
 @app.route("/predict/", methods=["GET"])
 def model_pred():
-    ID_client = request.args.get("id").split('/')[0]
+    ID_client = request.args.get("id", type=int)
     index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
     proba = float(model.predict_proba(test_scal[index])[:, 1])
     pred = int(model.predict(test_scal[index]))
@@ -107,26 +118,39 @@ def model_pred():
 
 @app.route("/explaination/explainer/", methods=["GET"])
 def explaination():
-    ID_client = request.args.get("id").split('/')[0]
-    index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
+    ID_client = request.args.get("id", type=int)
+    index = data_test[data_test.SK_ID_CURR == ID_client].index
     explain = explainer.expected_value[1]
     return jsonify(explain)
 
 
 @app.route("/explaination/data_shap/", methods=["GET"])
 def data_shap_expl():
-    ID_client = request.args.get("id").split('/')[0]
-    index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
+    ID_client = request.args.get("id", type=int)
+    index = data_test[data_test.SK_ID_CURR == ID_client].index
     data_shap = shap_values[1][index, :].tolist()
     return jsonify(data_shap)
 
 
 @app.route("/explaination/data_client/", methods=["GET"])
 def data_client_test():
-    ID_client = request.args.get("id").split('/')[0]
-    index = data_test[data_test.SK_ID_CURR == int(ID_client)].index
+    ID_client = request.args.get("id", type=int)
+    index = data_test[data_test.SK_ID_CURR == ID_client].index
     data_client = json.loads(data_test.iloc[index, :].to_json(orient='index'))
     return jsonify(data_client)
+
+
+@app.route("/neighbors/", methods=['GET'])
+def knearestneighbors():
+    ID_client = request.args.get("id", type=int)
+    index = data_test[data_test.SK_ID_CURR == ID_client].index
+    X = X_imp[index, :]
+    n_neighbors = request.args.get('nn', type=int)
+    knndist, knnidx = knn.kneighbors(X=X, n_neighbors=n_neighbors)
+    print(knnidx)
+    idlist = data_train[data_train.index.isin(knnidx[0])].SK_ID_CURR.to_list()
+    print(idlist)
+    return jsonify(idlist)
 
 
 if __name__ == "__main__":

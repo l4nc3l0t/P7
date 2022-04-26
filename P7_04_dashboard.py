@@ -37,8 +37,9 @@ app.layout = html.Div([
             dcc.Store(id='prediction')
         ]),
                 width={'size': 4}),
-        dbc.Col(
-            dbc.Row([
+        dbc.Col(dbc.Row([html.Div(id='shap_force')])),
+        dbc.Row([
+            dbc.Col(dbc.Row([
                 html.Label('Informations client :'),
                 dash_table.DataTable(id='tabledata',
                                      style_table={
@@ -46,10 +47,20 @@ app.layout = html.Div([
                                          'overflowY': 'scroll'
                                      }),
                 dcc.Store(id='infos_client')
-            ],
-                    justify="center"))
-    ]),
-    dbc.Row([html.Div(id='infos_shap')])
+            ]),
+                    width={'size': 6}),
+            dbc.Col(
+                dbc.Row([
+                    dcc.Markdown(children='Nombre de clients similaires :'),
+                    dcc.Slider(id='n_neighbors',
+                               min=10,
+                               max=1000,
+                               step=100,
+                               value=10),
+                    dcc.Store(id='k_neighbors')
+                ]))
+        ])
+    ])
 ])
 
 
@@ -86,7 +97,7 @@ def table(prediction):
     return [values, col]
 
 
-@app.callback(Output('infos_shap', 'children'), Input('ID_choosed', 'value'))
+@app.callback(Output('shap_force', 'children'), Input('ID_choosed', 'value'))
 def get_shap_infos(idclient):
     shap.initjs()
     url = URL_API + 'explaination/explainer/?id=' + str(idclient)
@@ -96,19 +107,29 @@ def get_shap_infos(idclient):
     url = URL_API + 'explaination/data_client/?id=' + str(idclient)
     data_client = requests.get(url).json()
     print(list(data_client.keys())[0])
-    df_client = pd.DataFrame(data_client[list(data_client.keys())[0]], index=[0])
+    df_client = pd.DataFrame(data_client[list(data_client.keys())[0]],
+                             index=[0])
     print(df_client)
     force_plot = shap.force_plot(explain,
                                  np.array(data_shap[0]),
                                  df_client,
                                  matplotlib=False)
-    shap_html = f"<head>{shap.getjs()}</head><body>{force_plot.html()}</body>"
-    return html.Iframe(srcDoc=shap_html,
+    shapF_html = f"<head>{shap.getjs()}</head><body>{force_plot.html()}</body>"
+    return html.Iframe(srcDoc=shapF_html,
                        style={
                            "width": "100%",
                            "height": "200px",
                            "border": 0
                        })
+
+
+@app.callback(Output('k_neighbors', 'data'), Input('n_neighbors', 'value'),
+              Input('ID_choosed', 'value'))
+def knearestneighbors(n_neighbors, idclient):
+    url = URL_API + 'neighbors/?nn=' + str(n_neighbors) + '&id=' + str(
+        idclient)
+    neighborslist = requests.get(url).json()
+    return neighborslist
 
 
 if __name__ == '__main__':
