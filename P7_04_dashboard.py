@@ -6,6 +6,8 @@ import json
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 import shap
 
@@ -43,12 +45,12 @@ app.layout = html.Div([
                 html.Label('Informations client :'),
                 dash_table.DataTable(id='tabledata',
                                      style_table={
-                                         'height': '600px',
+                                         'height': '900px',
                                          'overflowY': 'scroll'
                                      }),
                 dcc.Store(id='infos_client')
             ]),
-                    width={'size': 6}),
+                    width={'size': 4}),
             dbc.Col(
                 dbc.Row([
                     dcc.Markdown(children='Nombre de clients similaires :'),
@@ -56,8 +58,10 @@ app.layout = html.Div([
                                min=10,
                                max=1000,
                                step=100,
-                               value=10),
-                    dcc.Store(id='k_neighbors')
+                               value=100),
+                    dcc.Store(id='neighbors_data'),
+                    dcc.Graph(id='compare_neighbors'),
+                    dcc.Graph(id='compare_full')
                 ]))
         ])
     ])
@@ -106,10 +110,8 @@ def get_shap_infos(idclient):
     data_shap = requests.get(url).json()
     url = URL_API + 'explaination/data_client/?id=' + str(idclient)
     data_client = requests.get(url).json()
-    print(list(data_client.keys())[0])
     df_client = pd.DataFrame(data_client[list(data_client.keys())[0]],
                              index=[0])
-    print(df_client)
     force_plot = shap.force_plot(explain,
                                  np.array(data_shap[0]),
                                  df_client,
@@ -123,13 +125,121 @@ def get_shap_infos(idclient):
                        })
 
 
-@app.callback(Output('k_neighbors', 'data'), Input('n_neighbors', 'value'),
+@app.callback(Output('neighbors_data', 'data'), Input('n_neighbors', 'value'),
               Input('ID_choosed', 'value'))
 def knearestneighbors(n_neighbors, idclient):
     url = URL_API + 'neighbors/?nn=' + str(n_neighbors) + '&id=' + str(
         idclient)
-    neighborslist = requests.get(url).json()
-    return neighborslist
+    neighborsdata = requests.get(url).json()
+    return neighborsdata
+
+
+@app.callback(Output('compare_neighbors', 'figure'),
+              Input('neighbors_data', 'data'), Input('infos_client', 'data'))
+def table(neighbors_data, client_data):
+    client_data = pd.DataFrame(client_data).T
+
+    neighbors_data = pd.DataFrame(neighbors_data).T
+    ndD = neighbors_data[neighbors_data.TARGET == 1]
+    ndND = neighbors_data[neighbors_data.TARGET == 0]
+
+    col_interest = ['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']
+
+    cd = client_data[col_interest]
+
+    ndDMean = ndD[col_interest].mean().reset_index().rename(
+        columns={'index': 'variables'})
+    ndNDMean = ndND[col_interest].mean().reset_index().rename(
+        columns={'index': 'variables'})
+    
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        specs=[[{
+            'type': 'polar'
+        }] * 2],
+        subplot_titles=('Moyenne des clients similaires ne faisant pas défaut',
+                        'Moyenne des clients similaires faisant défaut'))
+    fig.add_trace(
+        go.Scatterpolar(r=ndNDMean[0],
+                        theta=ndNDMean.variables,
+                        mode='lines',
+                        name='Moyenne clients similaires ne faisant pas défaut'), 1,
+        1)
+    fig.add_trace(
+        go.Scatterpolar(r=cd.iloc[0],
+                        theta=cd.columns,
+                        mode='lines',
+                        name='Données client'), 1, 1)
+    fig.add_trace(
+        go.Scatterpolar(r=ndDMean[0],
+                        theta=ndDMean.variables,
+                        mode='lines',
+                        name='Moyenne clients similaires faisant défaut'), 1,
+        2)
+    fig.add_trace(
+        go.Scatterpolar(r=cd.iloc[0],
+                        theta=cd.columns,
+                        mode='lines',
+                        name='Données client'), 1, 2)
+
+    fig.update_layout(height=400)
+    fig.update_annotations(yshift=10)
+    return fig
+
+@app.callback(Output('compare_full', 'figure'), Input('infos_client', 'data'))
+def table(client_data):
+    url = URL_API + 'full_data/'
+    full_dataJ = requests.get(url).json()
+    full_data = pd.DataFrame(full_dataJ).T
+    print(full_data)
+    fdD = full_data[full_data.TARGET == 1]
+    fdND = full_data[full_data.TARGET == 0]
+
+    client_data = pd.DataFrame(client_data).T
+
+    col_interest = ['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']
+
+    cd = client_data[col_interest]
+
+    fdDMean = fdD[col_interest].mean().reset_index().rename(
+        columns={'index': 'variables'})
+    fdNDMean = fdND[col_interest].mean().reset_index().rename(
+        columns={'index': 'variables'})
+    
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        specs=[[{
+            'type': 'polar'
+        }] * 2],
+        subplot_titles=("Moyenne de l'ensemble des clients ne faisant défaut",
+                        "Moyenne de l'ensemble des client faisant défaut"))
+
+    fig.add_trace(
+        go.Scatterpolar(r=fdNDMean[0],
+                        theta=fdNDMean.variables,
+                        mode='lines',
+                        name='Moyenne clients ne faisant pas défaut'), 1, 1)
+    fig.add_trace(
+        go.Scatterpolar(r=cd.iloc[0],
+                        theta=cd.columns,
+                        mode='lines',
+                        name='Données client'), 1, 1)
+    fig.add_trace(
+        go.Scatterpolar(r=fdDMean[0],
+                        theta=fdDMean.variables,
+                        mode='lines',
+                        name='Moyenne clients faisant défaut'), 1, 2)
+    fig.add_trace(
+        go.Scatterpolar(r=cd.iloc[0],
+                        theta=cd.columns,
+                        mode='lines',
+                        name='Données client'), 1, 2)
+
+    fig.update_layout(height=400)
+    fig.update_annotations(yshift=10)
+    return fig
 
 
 if __name__ == '__main__':

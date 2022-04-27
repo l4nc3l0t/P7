@@ -37,6 +37,8 @@ data_train[
 data_train.DAYS_EMPLOYED_ANOM = data_train.DAYS_EMPLOYED_ANOM.astype(int)
 data_train.DAYS_EMPLOYED.replace({data_train.DAYS_EMPLOYED.max(): np.nan},
                                  inplace=True)
+app_train.DAYS_EMPLOYED.replace({app_train.DAYS_EMPLOYED.max(): np.nan},
+                                 inplace=True)
 
 data_test[
     'DAYS_EMPLOYED_ANOM'] = data_test.DAYS_EMPLOYED == data_test.DAYS_EMPLOYED.max(
@@ -94,11 +96,17 @@ def show_data():
     ID_client = request.args.get("id", default=100001, type=int)
     data_client = app_test[app_test.SK_ID_CURR == int(ID_client)].set_index(
         'SK_ID_CURR')
-    print(data_client)
     data_reponse = json.loads(data_client.to_json(orient='index'))
-    print(data_reponse)
     return jsonify(data_reponse)
 
+@app.route("/full_data/", methods=["GET"])
+def full_data():
+    full_data = app_train.set_index(
+        'SK_ID_CURR')
+    col_interest = ['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'TARGET']
+    fd = full_data[col_interest]
+    fdJSON = json.loads(fd.to_json(orient='index'))
+    return jsonify(fdJSON)
 
 # http://localhost:5000/predict?id=100001
 @app.route("/predict/", methods=["GET"])
@@ -139,7 +147,7 @@ def data_client_test():
     data_client = json.loads(data_test.iloc[index, :].to_json(orient='index'))
     return jsonify(data_client)
 
-
+# http://localhost:5000/neighbors/?id=100001&nn=10
 @app.route("/neighbors/", methods=['GET'])
 def knearestneighbors():
     ID_client = request.args.get("id", type=int)
@@ -147,11 +155,13 @@ def knearestneighbors():
     X = X_imp[index, :]
     n_neighbors = request.args.get('nn', type=int)
     knndist, knnidx = knn.kneighbors(X=X, n_neighbors=n_neighbors)
-    print(knnidx)
     idlist = data_train[data_train.index.isin(knnidx[0])].SK_ID_CURR.to_list()
-    print(idlist)
-    return jsonify(idlist)
+    data_neighbors = app_train[app_train.index.isin(knnidx[0])].set_index(
+        'SK_ID_CURR')
+    data_neighborsJSON = json.loads(data_neighbors.to_json(orient='index'))
+    return jsonify(data_neighborsJSON)
 
+    
 
 if __name__ == "__main__":
     app.run(host="localhost", debug=True)
