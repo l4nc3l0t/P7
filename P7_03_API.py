@@ -105,8 +105,8 @@ def full_data():
     full_data = app_train.set_index('SK_ID_CURR')
     col_interest = [
         'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_EMPLOYED',
-        'DAYS_BIRTH', 'DAYS_REGISTRATION',
-        'TARGET'
+        'DAYS_BIRTH', 'DAYS_REGISTRATION', 'AMT_CREDIT', 'AMT_GOODS_PRICE',
+        'AMT_INCOME_TOTAL', 'TARGET'
     ]
     fd = full_data[col_interest]
     fdJSON = json.loads(fd.to_json(orient='index'))
