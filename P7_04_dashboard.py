@@ -1,10 +1,12 @@
-from dash import Dash, html, dcc, Input, Output, dash_table
+from dash import Dash, Input, Output, dash_table, dcc, html
 import dash_bootstrap_components as dbc
+
 import requests
 import json
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -49,24 +51,26 @@ app.layout = html.Div([
                     width={'size': 4}),
             dbc.Col(
                 dbc.Row([
-                    dcc.Markdown(children='Nombre de clients similaires :'),
-                    dcc.Slider(id='n_neighbors',
-                               min=10,
-                               max=1000,
-                               step=100,
-                               value=100),
-                    dcc.Store(id='neighbors_data'),
                     dcc.Tabs(children=[
-                        dcc.Tab(label='Comparaison EXT_SOURCES',
-                                children=[
-                                    dcc.Graph(id='compareEXT_neighbors'),
-                                    dcc.Graph(id='compareEXT_full')
-                                ]),
                         dcc.Tab(
-                            label='Comparaison temps employé/enregistrement',
+                            label='Comparaison avec des clients similaires',
                             children=[
-                                dcc.Graph(id='compareDAYS_neighbors'),
-                                dcc.Graph(id='compareDAYS_full')
+                                dcc.Markdown(
+                                    children='Nombre de clients similaires :'),
+                                dcc.Slider(id='n_neighbors',
+                                           min=10,
+                                           max=1000,
+                                           step=100,
+                                           value=100),
+                                dcc.Store(id='neighbors_data'),
+                                dcc.Graph(id='compare_neighbors',
+                                          style={'height': 800}),
+                            ]),
+                        dcc.Tab(
+                            label="Comparaison avec l'ensemble des clients",
+                            children=[
+                                dcc.Graph(id='compare_full',
+                                          style={'height': 800})
                             ])
                     ])
                 ]))
@@ -142,7 +146,7 @@ def knearestneighbors(n_neighbors, idclient):
 
 
 @app.callback(
-    Output('compareEXT_neighbors', 'figure'),
+    Output('compare_neighbors', 'figure'),
     Input('neighbors_data', 'data'),
     Input('infos_client', 'data'),
 )
@@ -153,53 +157,64 @@ def neighbors_compare(neighbors_data, client_data):
     ndD = neighbors_data[neighbors_data.TARGET == 1]
     ndND = neighbors_data[neighbors_data.TARGET == 0]
 
-    col_interest = ['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']
-
-    cd = client_data[col_interest]
-
-    ndDMean = ndD[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
-    ndNDMean = ndND[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
+    col_EXT = ['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']
+    col_DAYS = ['DAYS_BIRTH', 'DAYS_EMPLOYED', 'DAYS_REGISTRATION']
+    col_AMT = ['AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_INCOME_TOTAL']
 
     fig = make_subplots(
-        rows=1,
-        cols=2,
-        specs=[[{
-            'type': 'polar'
-        }] * 2],
-        subplot_titles=('Moyenne des clients similaires ne faisant pas défaut',
-                        'Moyenne des clients similaires faisant défaut'))
-    fig.add_trace(
-        go.Scatterpolar(
-            r=ndNDMean[0],
-            theta=ndNDMean.variables,
-            mode='lines',
-            name='Moyenne clients similaires ne faisant pas défaut'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=ndDMean[0],
-                        theta=ndDMean.variables,
-                        mode='lines',
-                        name='Moyenne clients similaires faisant défaut'), 1,
-        2)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 2)
-
-    fig.update_layout(height=400)
-    fig.update_annotations(yshift=10)
+        rows=3,
+        cols=3,
+        subplot_titles=[names for names in (*col_EXT, *col_DAYS, *col_AMT)])
+    for EXT, colEXT in enumerate(col_EXT):
+        fig.add_scatter(y=client_data[colEXT],
+                        mode='markers',
+                        name='Client',
+                        row=1,
+                        col=EXT + 1)
+        fig.add_trace(
+            go.Box(y=ndD[colEXT],
+                   boxmean='sd',
+                   name='Clients similaires<br>faisant défaut'), 1, EXT + 1)
+        fig.add_trace(
+            go.Box(y=ndND[colEXT],
+                   boxmean='sd',
+                   name='Clients similaires<br>ne faisant pas défaut'), 1,
+            EXT + 1)
+    for DAYS, colDAYS in enumerate(col_DAYS):
+        fig.add_scatter(y=client_data[colDAYS] / -365,
+                        mode='markers',
+                        name='Client',
+                        row=2,
+                        col=DAYS + 1)
+        fig.add_trace(
+            go.Box(y=ndD[colDAYS] / -365,
+                   boxmean='sd',
+                   name='Clients similaires<br>faisant défaut'), 2, DAYS + 1)
+        fig.add_trace(
+            go.Box(y=ndND[colDAYS] / -365,
+                   boxmean='sd',
+                   name='Clients similaires<br>ne faisant pas défaut'), 2,
+            DAYS + 1)
+    for AMT, colAMT in enumerate(col_AMT):
+        fig.add_scatter(y=client_data[colAMT],
+                        mode='markers',
+                        name='Client',
+                        row=3,
+                        col=AMT + 1)
+        fig.add_trace(
+            go.Box(y=ndD[colAMT],
+                   boxmean='sd',
+                   name='Clients similaires<br>faisant défaut'), 3, AMT + 1)
+        fig.add_trace(
+            go.Box(y=ndND[colAMT],
+                   boxmean='sd',
+                   name='Clients similaires<br>ne faisant pas défaut'), 3,
+            AMT + 1)
+    fig.update_layout(height=800, showlegend=False)
     return fig
 
 
-@app.callback(Output('compareEXT_full', 'figure'),
-              Input('infos_client', 'data'))
+@app.callback(Output('compare_full', 'figure'), Input('infos_client', 'data'))
 def full_compare(client_data):
     url = URL_API + 'full_data/'
     full_dataJ = requests.get(url).json()
@@ -210,174 +225,60 @@ def full_compare(client_data):
 
     client_data = pd.DataFrame(client_data).T
 
-    col_interest = ['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']
-
-    cd = client_data[col_interest]
-
-    fdDMean = fdD[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
-    fdNDMean = fdND[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
+    col_EXT = ['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']
+    col_DAYS = ['DAYS_BIRTH', 'DAYS_EMPLOYED', 'DAYS_REGISTRATION']
+    col_AMT = ['AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_INCOME_TOTAL']
 
     fig = make_subplots(
-        rows=1,
-        cols=2,
-        specs=[[{
-            'type': 'polar'
-        }] * 2],
-        subplot_titles=("Moyenne de l'ensemble des clients ne faisant défaut",
-                        "Moyenne de l'ensemble des client faisant défaut"))
-
-    fig.add_trace(
-        go.Scatterpolar(r=fdNDMean[0],
-                        theta=fdNDMean.variables,
-                        mode='lines',
-                        name='Moyenne clients ne faisant pas défaut'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=fdDMean[0],
-                        theta=fdDMean.variables,
-                        mode='lines',
-                        name='Moyenne clients faisant défaut'), 1, 2)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 2)
-
-    fig.update_layout(height=400)
-    fig.update_annotations(yshift=10)
-    return fig
-
-
-@app.callback(
-    Output('compareDAYS_neighbors', 'figure'),
-    Input('neighbors_data', 'data'),
-    Input('infos_client', 'data'),
-)
-def neighbors_compare(neighbors_data, client_data):
-    client_data = pd.DataFrame(client_data).T
-
-    neighbors_data = pd.DataFrame(neighbors_data).T
-    neighbors_data.DAYS_EMPLOYED = neighbors_data.DAYS_EMPLOYED / -365
-    neighbors_data.DAYS_BIRTH = neighbors_data.DAYS_BIRTH / -365
-    neighbors_data.DAYS_REGISTRATION = neighbors_data.DAYS_REGISTRATION / -365
-
-    ndD = neighbors_data[neighbors_data.TARGET == 1]
-    ndND = neighbors_data[neighbors_data.TARGET == 0]
-
-    col_interest = ['DAYS_BIRTH', 'DAYS_EMPLOYED', 'DAYS_REGISTRATION']
-
-    cd = client_data[col_interest]
-    cd.DAYS_EMPLOYED = cd.DAYS_EMPLOYED / -365
-    cd.DAYS_BIRTH = cd.DAYS_BIRTH / -365
-    cd.DAYS_REGISTRATION = cd.DAYS_REGISTRATION / -365
-
-    ndDMean = ndD[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
-    ndNDMean = ndND[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
-
-    fig = make_subplots(
-        rows=1,
-        cols=2,
-        specs=[[{
-            'type': 'polar'
-        }] * 2],
-        subplot_titles=('Moyenne des clients similaires ne faisant pas défaut',
-                        'Moyenne des clients similaires faisant défaut'))
-    fig.add_trace(
-        go.Scatterpolar(
-            r=ndNDMean[0],
-            theta=ndNDMean.variables,
-            mode='lines',
-            name='Moyenne clients similaires ne faisant pas défaut'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=ndDMean[0],
-                        theta=ndDMean.variables,
-                        mode='lines',
-                        name='Moyenne clients similaires faisant défaut'), 1,
-        2)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 2)
-
-    fig.update_layout(height=400)
-    fig.update_annotations(yshift=10)
-    return fig
-
-
-@app.callback(Output('compareDAYS_full', 'figure'),
-              Input('infos_client', 'data'))
-def full_compare(client_data):
-    url = URL_API + 'full_data/'
-    full_dataJ = requests.get(url).json()
-    full_data = pd.DataFrame(full_dataJ).T
-    full_data.DAYS_EMPLOYED = full_data.DAYS_EMPLOYED / -365
-    full_data.DAYS_BIRTH = full_data.DAYS_BIRTH / -365
-    full_data.DAYS_REGISTRATION = full_data.DAYS_REGISTRATION / -365
-
-    print(full_data)
-    fdD = full_data[full_data.TARGET == 1]
-    fdND = full_data[full_data.TARGET == 0]
-
-    client_data = pd.DataFrame(client_data).T
-
-    col_interest = ['DAYS_BIRTH', 'DAYS_EMPLOYED', 'DAYS_REGISTRATION']
-
-    cd = client_data[col_interest]
-    cd.DAYS_EMPLOYED = cd.DAYS_EMPLOYED / -365
-    cd.DAYS_BIRTH = cd.DAYS_BIRTH / -365
-    cd.DAYS_REGISTRATION = cd.DAYS_REGISTRATION / -365
-
-    fdDMean = fdD[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
-    fdNDMean = fdND[col_interest].mean().reset_index().rename(
-        columns={'index': 'variables'})
-
-    fig = make_subplots(
-        rows=1,
-        cols=2,
-        specs=[[{
-            'type': 'polar'
-        }] * 2],
-        subplot_titles=("Moyenne de l'ensemble des clients ne faisant défaut",
-                        "Moyenne de l'ensemble des client faisant défaut"))
-
-    fig.add_trace(
-        go.Scatterpolar(r=fdNDMean[0],
-                        theta=fdNDMean.variables,
-                        mode='lines',
-                        name='Moyenne clients ne faisant pas défaut'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 1)
-    fig.add_trace(
-        go.Scatterpolar(r=fdDMean[0],
-                        theta=fdDMean.variables,
-                        mode='lines',
-                        name='Moyenne clients faisant défaut'), 1, 2)
-    fig.add_trace(
-        go.Scatterpolar(r=cd.iloc[0],
-                        theta=cd.columns,
-                        mode='lines',
-                        name='Données client'), 1, 2)
-
-    fig.update_layout(height=400)
-    fig.update_annotations(yshift=10)
+        rows=3,
+        cols=3,
+        subplot_titles=[names for names in (*col_EXT, *col_DAYS, *col_AMT)])
+    for EXT, colEXT in enumerate(col_EXT):
+        fig.add_scatter(y=client_data[colEXT],
+                        mode='markers',
+                        name='Client',
+                        row=1,
+                        col=EXT + 1)
+        fig.add_trace(
+            go.Box(y=fdD[colEXT],
+                   boxmean='sd',
+                   name='Clients similaires<br>faisant défaut'), 1, EXT + 1)
+        fig.add_trace(
+            go.Box(y=fdND[colEXT],
+                   boxmean='sd',
+                   name='Clients similaires<br>ne faisant pas défaut'), 1,
+            EXT + 1)
+    for DAYS, colDAYS in enumerate(col_DAYS):
+        fig.add_scatter(y=client_data[colDAYS] / -365,
+                        mode='markers',
+                        name='Client',
+                        row=2,
+                        col=DAYS + 1)
+        fig.add_trace(
+            go.Box(y=fdD[colDAYS] / -365,
+                   boxmean='sd',
+                   name='Clients similaires<br>faisant défaut'), 2, DAYS + 1)
+        fig.add_trace(
+            go.Box(y=fdND[colDAYS] / -365,
+                   boxmean='sd',
+                   name='Clients similaires<br>ne faisant pas défaut'), 2,
+            DAYS + 1)
+    for AMT, colAMT in enumerate(col_AMT):
+        fig.add_scatter(y=client_data[colAMT],
+                        mode='markers',
+                        name='Client',
+                        row=3,
+                        col=AMT + 1)
+        fig.add_trace(
+            go.Box(y=fdD[colAMT],
+                   boxmean='sd',
+                   name='Clients similaires<br>faisant défaut'), 3, AMT + 1)
+        fig.add_trace(
+            go.Box(y=fdND[colAMT],
+                   boxmean='sd',
+                   name='Clients similaires<br>ne faisant pas défaut'), 3,
+            AMT + 1)
+    fig.update_layout(height=800, showlegend=False)
     return fig
 
 
