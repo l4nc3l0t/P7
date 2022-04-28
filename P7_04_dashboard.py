@@ -12,11 +12,7 @@ from plotly.subplots import make_subplots
 import shap
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
-Titre = ''' 
-## Prêt à dépenser
-
-'''
+server = app.server
 
 URL_API = 'http://localhost:5000/'
 
