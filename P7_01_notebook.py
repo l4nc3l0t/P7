@@ -73,17 +73,14 @@ fig = px.bar(
        app_train.isna().sum()[app_train.isna().sum() != 0].sort_values().values
        ) / app_train.shape[0] * 100,
     labels=dict(x='Indicateurs', y='Pourcentage de données'),
-    title='Pourcentage de données par colonnes',
+    title='Pourcentage de données par colonnes comportant des données manquantes',
     height=550,
     width=1100)
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/app_trainNbDataMiss.pdf')
-# %%
-# suppression des lignes ayant des nans dans les colonnes ayant moins de 1 % de nan
-app_train_clean = app_train[
-    app_train.isna().sum()[(app_train.isna().sum() <= .01 * app_train.shape[0])
-                           & (app_train.isna().sum() != 0)].index].dropna()
+if write_data is True:
+    fig.write_image('./Figures/app_trainNbDataMiss.pdf')
 # %%
 # nombre de catégories par colonnes catégorielles
 app_train.select_dtypes('object').apply(pd.Series.nunique, axis=0)
