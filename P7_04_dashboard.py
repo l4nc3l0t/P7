@@ -166,11 +166,11 @@ def neighbors_compare(neighbors_data, client_data):
         cols=3,
         subplot_titles=[names for names in (*col_EXT, *col_DAYS, *col_AMT)])
     for EXT, colEXT in enumerate(col_EXT):
-        fig.add_scatter(y=client_data[colEXT],
-                        mode='markers',
-                        name='Client',
-                        row=1,
-                        col=EXT + 1)
+        fig.add_trace(
+            go.Scatter(x=client_data.index,
+                       y=client_data[colEXT],
+                       mode='markers',
+                       name='Client'), 1, EXT + 1)
         fig.add_trace(
             go.Box(y=ndD[colEXT],
                    boxmean='sd',
@@ -181,11 +181,11 @@ def neighbors_compare(neighbors_data, client_data):
                    name='Clients similaires<br>ne faisant pas défaut'), 1,
             EXT + 1)
     for DAYS, colDAYS in enumerate(col_DAYS):
-        fig.add_scatter(y=client_data[colDAYS] / -365,
-                        mode='markers',
-                        name='Client',
-                        row=2,
-                        col=DAYS + 1)
+        fig.add_trace(
+            go.Scatter(x=client_data.index,
+                       y=client_data[colDAYS] / -365,
+                       mode='markers',
+                       name='Client'), 2, DAYS + 1)
         fig.add_trace(
             go.Box(y=ndD[colDAYS] / -365,
                    boxmean='sd',
@@ -196,11 +196,11 @@ def neighbors_compare(neighbors_data, client_data):
                    name='Clients similaires<br>ne faisant pas défaut'), 2,
             DAYS + 1)
     for AMT, colAMT in enumerate(col_AMT):
-        fig.add_scatter(y=client_data[colAMT],
-                        mode='markers',
-                        name='Client',
-                        row=3,
-                        col=AMT + 1)
+        fig.add_trace(
+            go.Scatter(x=client_data.index,
+                       y=client_data[colAMT],
+                       mode='markers',
+                       name='Client'), 3, AMT + 1)
         fig.add_trace(
             go.Box(y=ndD[colAMT],
                    boxmean='sd',
@@ -234,11 +234,11 @@ def full_compare(client_data):
         cols=3,
         subplot_titles=[names for names in (*col_EXT, *col_DAYS, *col_AMT)])
     for EXT, colEXT in enumerate(col_EXT):
-        fig.add_scatter(y=client_data[colEXT],
-                        mode='markers',
-                        name='Client',
-                        row=1,
-                        col=EXT + 1)
+        fig.add_trace(
+            go.Scatter(x=client_data.index,
+                       y=client_data[colEXT],
+                       mode='markers',
+                       name='Client'), 1, EXT + 1)
         fig.add_trace(
             go.Box(y=fdD[colEXT],
                    boxmean='sd',
@@ -249,11 +249,11 @@ def full_compare(client_data):
                    name='Clients similaires<br>ne faisant pas défaut'), 1,
             EXT + 1)
     for DAYS, colDAYS in enumerate(col_DAYS):
-        fig.add_scatter(y=client_data[colDAYS] / -365,
-                        mode='markers',
-                        name='Client',
-                        row=2,
-                        col=DAYS + 1)
+        fig.add_trace(
+            go.Scatter(x=client_data.index,
+                       y=client_data[colDAYS] / -365,
+                       mode='markers',
+                       name='Client'), 2, DAYS + 1)
         fig.add_trace(
             go.Box(y=fdD[colDAYS] / -365,
                    boxmean='sd',
@@ -264,11 +264,11 @@ def full_compare(client_data):
                    name='Clients similaires<br>ne faisant pas défaut'), 2,
             DAYS + 1)
     for AMT, colAMT in enumerate(col_AMT):
-        fig.add_scatter(y=client_data[colAMT],
-                        mode='markers',
-                        name='Client',
-                        row=3,
-                        col=AMT + 1)
+        fig.add_trace(
+            go.Scatter(x=client_data.index,
+                       y=client_data[colAMT],
+                       mode='markers',
+                       name='Client'), 3, AMT + 1)
         fig.add_trace(
             go.Box(y=fdD[colAMT],
                    boxmean='sd',
