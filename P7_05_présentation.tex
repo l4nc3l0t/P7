@@ -38,6 +38,7 @@
 \usepackage[]{animate}
 \usepackage{float}
 \usepackage{csquotes}
+\usepackage{minted}
 
 \usetheme[secheader]{Boadilla}
 \usecolortheme{seagull}
@@ -269,7 +270,9 @@
     \begin{columns}
         \begin{column}{.5\textwidth}
             \begin{itemize}
-                \item
+                \item La courbe ROC représente les vrais positifs en fonction des faux positifs
+                \item Plus la courbe est proche du coin supérieur gauche meilleur est le modèle
+                \item L'aire sous la courbe (AUC) est nous donne une valeur numérique pour comparer ces modèles
             \end{itemize}
         \end{column}
         \begin{column}{.5\textwidth}
@@ -283,7 +286,12 @@
     \begin{columns}
         \begin{column}{.5\textwidth}
             \begin{itemize}
-                \item
+                \item Accuracy : précision de la classification (somme des éléments bien classé sur le nombre total d'éléments)
+                \item AUC : Area Under the Curve, aire sous la courbe ROC
+                \item Precision : part de vrai positifs dans les prédictions positives
+                \item Recall : part de vrai positifs dans les éléments vraiments positifs
+                \item F1 : moyenne harmonique de la précision et du rappel
+                \item F2 : idem F1 avec un facteur β=2, permettant de mettre plus de poid sur le rappel
             \end{itemize}
         \end{column}
         \begin{column}{.5\textwidth}
@@ -342,6 +350,65 @@
         \end{column}
         \begin{column}{.39\textwidth}
             \includegraphics[width=\textwidth]{ScoresGridF2_base.pdf}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\section{Déploiement sur le cloud}
+\subsection{API}
+\begin{frame}[fragile]{\insertsection}{\insertsubsection}
+    \begin{itemize}
+        \item Utilisation de Flask
+        \item Entrainement du modèle et prédictions
+        \item Une URL pour chaque type de données avec une ou plusieurs clé permettant des requêtes sur des clients ou des valeurs particulières
+        \item Exemple pour les données des clients pour lesquelles on renseigne l'id du client : \url{http://localhost:5000/ID_clients/infos_client?id=<identifiant>}
+        \item[]
+    \end{itemize}
+    \begin{minted}{python}
+@app.route("/ID_clients/infos_client/", methods=["GET"])
+def show_data():
+    ID_client = request.args.get("id", default=100001, type=int)
+    data_client = app_test[app_test.SK_ID_CURR == int(ID_client)].set_index('SK_ID_CURR')
+    data_reponse = json.loads(data_client.to_json(orient='index'))
+    return jsonify(data_reponse)    
+    \end{minted}
+\end{frame}
+
+\subsection{Dashboard}
+\begin{frame}[fragile]{\insertsection}{\insertsubsection}
+    \begin{itemize}
+        \item Utilisation de Dashboard
+        \item Requêtes à l'API afin d'optenir les données au format JSON
+        \item Exemple pour une requête consernant les données d'un client :
+        \item[]
+    \end{itemize}
+    \begin{minted}{python}
+URL_API = 'http://localhost:5000/'
+
+@app.callback(Output('infos_client', 'data'), Input('ID_choosed', 'value'))
+def get_client_infos(idclient):
+    url = URL_API + 'ID_clients/infos_client/?id=' + str(idclient)
+    data = requests.get(url).json()
+    return data 
+            \end{minted}
+\end{frame}
+
+\subsection{Déploiement}
+\begin{frame}{\insertsection}{\insertsubsection}
+    \begin{columns}
+        \begin{column}{.4\textwidth}
+            \begin{itemize}
+                \item Déploiement sur Heroku
+                \begin{itemize}
+                    \item \texttt{heroku git:remote -a bank-scoring-dash}
+                    \item \texttt{git add .}
+                    \item \texttt{git commit -am 'launch in the cloud'}
+                    \item \texttt{git push heroku master}
+                \end{itemize}
+            \end{itemize}
+        \end{column}
+        \begin{column}{.6\textwidth}
+            \includegraphics[width=\textwidth]{DashSim.png}
         \end{column}
     \end{columns}
 \end{frame}
