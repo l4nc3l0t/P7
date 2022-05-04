@@ -4,14 +4,24 @@
 	\setdefaultlanguage{french}
 \usepackage{fontspec}
 	\setmainfont{TeX Gyre Termes}
+\usepackage{unicode-math}    
+\usepackage{lualatex-math}
+	\setmathfont{TeX Gyre Termes Math}
 \usepackage[top=2.5cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}
 \usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{makecell}
+    \setcellgapes{8pt}
 \usepackage[unicode=true,
 %            colorlinks=true,
 %            citecolor={green!50!black},
 %            urlcolor=blue,
             hidelinks
             ]{hyperref}
+\usepackage{tikz}
 
 \begin{document}
 
@@ -62,7 +72,7 @@ Du fait d'un déséquilibre dans les valeurs cible il est difficile pour le mod�
 
 \begin{figure}[h]
     \begin{center}
-        \includegraphics[width=\textwidth]{./Figures/DéséquilibreCible.pdf}
+        \includegraphics[width=.7\textwidth]{./Figures/DéséquilibreCible.pdf}
     \end{center}
     \caption{Diagramme circulaire illustrant le déséquilibre des types de clients dans la colonne cible}
     \label{fig:DéséquilibreCible}
@@ -70,18 +80,73 @@ Du fait d'un déséquilibre dans les valeurs cible il est difficile pour le mod�
 
 Lors de l'optimisation du score AUC le modèle va préférer classer tout les clients comme ne faisant pas défaut car cela amériorera sont score.
 Nous avons donc dû rééquilibrer la part des valeurs cible grace à la librairie imblearn.
+Cette librairie propose des outils de sur- et de sous-échantillonnage.
+
+Le sur-échantillonnage (over-sampling) permet d'augmenter le nombre de cibles faisant défaut.
+Soit en dédoublant aléatoirements des cibles faisant défaut (random over sampling).
+Soit en créant des données synthétiques (SMOTE) à partir de cibles voisines (KNN)
+
+Le sous-échantillonnage (under-sampling) permet de diminuer le nombre de cibles ne faisant pas défaut.
+Soit en échantillonant aléatoirement un nombre de cible ne faisant pas défaut égale au nombre de cible faisant défaut (random under sampling)
+Soit en créant des données (Tomek links) à partir de groupe de cibles ne faisant pas défaut (KNN)
 
 \subsection{Modèles}
 
-
+Nous avons utilisé deux modèles XGBoost et LightGBM qui ont l'avantage d'être résistants au valeurs manquantes.
 
 \section{Évaluation, optimisation et coût métier}
 
 \subsection{Courbe ROC et aire sous la courbe (AUC)}
 
-\subsection{GridSearch}
+La courbe ROC représente les vrais positifs en fonction des faux positifs (Fig. \ref{fig:ROCCurves}).
+Plus la courbe est proche du coin supérieur gauche meilleur est le modèle.
+L'aire sous la courbe (AUC) nous donne une valeur numérique pour comparer ces modèles.
 
+\begin{figure}[h]
+    \begin{center}
+        \includegraphics[width=\textwidth]{./Figures/CurvesROCGridBest_base.pdf}
+    \end{center}
+    \caption{Courbes ROC pour les deux modèles dont nous avons testé les hyperparamètres}
+    \label{fig:ROCCurves}
+\end{figure}
+
+\newpage
 \subsection{Coût métier}
+
+Afin d'utiliser une méthode d'évaluation qui soit mathématiquement fondée nous nous sommes basé sur une métrique déjà existante du F-score.
+Ce score calcul la moyenne harmonique de la précision et du rappel (Fig. \ref{fig:ConfMatrix}).
+L'utilisation du $F_β$-score permet d'ajouter du poid respectivement au recall lorsque le facteur β est \num{>1} ou à la precision lorsque le facteur β est \num{<1}.
+Nous avons utilisé une valeur de β=2
+
+\begin{figure}[h]
+    \begin{center}
+        \begin{tikzpicture}
+            \node[anchor=south west,inner sep=0] (image) at (0,0) { {\makegapedcells
+                        \begin{tabular}{cc|cc}
+                            \multicolumn{2}{c}{}
+                             & \multicolumn{2}{c}{Prédit}           \\
+                             &                            & 0  & 1  \\
+                            \cline{2-4}
+                            \multirow{2}{*}{\rotatebox[origin=c]{90}{Réel}}
+                             & 0                          & TN & FP \\
+                             & 1                          & FN & TP \\
+                            \cline{2-4}
+                        \end{tabular}}};
+            \begin{scope}[x={(image.south east)},y={(image.north west)}]
+                \draw[red, ultra thick] (0.7,0.12) circle [x radius=1cm, y radius=.4cm];
+                \node[rectangle,below] at (0.7,-0.05) (R) {Recall};
+                \draw[green, ultra thick] (0.87,0.25) circle [x radius=.5cm, y radius=.9cm];
+                \node[rectangle,right] at (1,0.25) (P) {Precision};
+                %\draw[help lines,xstep=.1,ystep=.1] (0,0) grid (1,1);
+                %\foreach \x in {0,1,...,9} { \node [anchor=north] at (\x/10,0) {0.\x}; }
+                %\foreach \y in {0,1,...,9} { \node [anchor=east] at (0,\y/10) {0.\y}; }
+
+            \end{scope}
+        \end{tikzpicture}
+    \end{center}
+    \caption{Matrice de confusion rapellant ce que sont la précision et le rappel}
+    \label{fig:ConfMatrix}
+\end{figure}
 
 \section{Interprétabilité}
 
@@ -93,15 +158,34 @@ L'étude des principales variables utilisées par le modèle permet de mieux com
 
 \begin{figure}[h]
     \begin{center}
-        \includegraphics[width=\textwidth]{./Figures/BestFeatGridF2_base.pdf}
+        \includegraphics[width=.7\textwidth]{./Figures/BestFeatGridF2_base.pdf}
     \end{center}
     \caption{Principales variables selon leur importance dans l'entrainement des modèles}
     \label{fig:BestFeat}
 \end{figure}
 
+La librairie SHAP nous permet d'observer la part des différentes variables dans la classification dans l'une ou l'autre des classes (Fig. \ref{fig:shapSummary}).
+
+\begin{figure}[h]
+    \begin{center}
+        \includegraphics[width=.55\textwidth]{./Figures/shapSummary.pdf}
+    \end{center}
+    \caption{Part des principales variables dans la classification}
+    \label{fig:shapSummary}
+\end{figure}
+
 \subsection{Locale}
 
-La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variables dans le classement d'un client en particulier.
+La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variables dans le classement d'un client en particulier (Fig. \ref{fig:shapWaterfall}).
+
+\begin{figure}[h]
+    \begin{center}
+        \includegraphics[width=\textwidth]{./Figures/shapForce}
+        \includegraphics[width=.7\textwidth]{./Figures/shapWaterfall.pdf}
+    \end{center}
+    \caption{Part des variables dans la classification d'un client}
+    \label{fig:shapWaterfall}
+\end{figure}
 
 \section{Limites et améliorations}
 
