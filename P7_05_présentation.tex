@@ -265,6 +265,25 @@
 \end{frame}
 
 \section{Optimisation du modèle}
+\subsection{GridSearch}
+\begin{frame}{\insertsection}{\insertsubsection}
+    \begin{itemize}
+        \item[] Pour chaque solution de rééquilibrage retenues :
+        \begin{itemize}
+            \item[] RandomOverSampler, RandomUnderSampler, SMOTE, SMOTETomek
+            \item[] \LARGE $\Downarrow$
+        \end{itemize} 
+        \item[] GridSearch pour les deux modèles :
+        \begin{itemize}
+            \item[] XGBoost Classifier, LightGBM Classifier
+            \item[] \LARGE $\Downarrow$
+        \end{itemize}
+        \item[] Nous retenons le meilleur résultat pour un couple : solution de rééquilibrage/modèle
+        \item[]
+        \item[] Nous avons fait différents essais d'optimisation avec plusieurs métriques
+    \end{itemize}
+\end{frame}
+
 \subsection{Courbe ROC}
 \begin{frame}{\insertsection}{\insertsubsection}
     \begin{columns}
@@ -399,17 +418,34 @@ def get_client_infos(idclient):
         \begin{column}{.4\textwidth}
             \begin{itemize}
                 \item Déploiement sur Heroku
-                \begin{itemize}
-                    \item \texttt{heroku git:remote -a bank-scoring-dash}
-                    \item \texttt{git add .}
-                    \item \texttt{git commit -am 'launch in the cloud'}
-                    \item \texttt{git push heroku master}
-                \end{itemize}
+                      \begin{itemize}
+                          \item \texttt{heroku git:remote -a bank-scoring-dash}
+                          \item \texttt{git add .}
+                          \item \texttt{git commit -am 'launch in the cloud'}
+                          \item \texttt{git push heroku master}
+                      \end{itemize}
             \end{itemize}
         \end{column}
         \begin{column}{.6\textwidth}
             \includegraphics[width=\textwidth]{DashSim.png}
         \end{column}
     \end{columns}
+\end{frame}
+
+\section{Conclusion}
+\begin{frame}{\insertsection}
+    \begin{itemize}
+        \item Utilisation de données déséqulibrées
+        \item[]
+        \item Optimisation des modèle à l'aide d'une GridSearch
+        \item[]
+        \item Utilisation d'une métrique plus particulière afin d'optimiser le modèle en fonction des attentes du métier
+        \item[]
+        \item Il aurait pû être intéressant d'optimiser plus d'hyperparamètres afin d'améliorer un peu plus nos résultats
+        \item[]
+        \item Le déploiement dans le cloud permet un accès rapide à ces données concernant les clients et les prédictions qu'ils fassent ou non défaut 
+        \item[]
+        \item Ces données sont accompagnées de graphiques permettant de comparer ces clients avec d'autres clients similaires ou à l'ensemble des clients
+    \end{itemize}
 \end{frame}
 \end{document}
