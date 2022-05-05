@@ -90,11 +90,13 @@ Le sous-échantillonnage (under-sampling) permet de diminuer le nombre de cibles
 Soit en échantillonant aléatoirement un nombre de cible ne faisant pas défaut égale au nombre de cible faisant défaut (random under sampling)
 Soit en créant des données (Tomek links) à partir de groupe de cibles ne faisant pas défaut (KNN)
 
+Un mélange de sur- et de sous-échantillonnage avec SMOTEENN et SMOTETomek qui combinent les effets de SMOTE avec une réduction à partir des plus proches voisins
+
 \subsection{Modèles}
 
-Nous avons utilisé deux modèles XGBoost et LightGBM qui ont l'avantage d'être résistants au valeurs manquantes.
+Nous avons utilisé deux modèles XGBoost et LightGBM qui ont l'avantage d'être résistants au valeurs manquantes. Ces deux modèles reposent sur le boosting de gradient qui consiste en une agrégations d'arbres de décisions simples afin d'optenir un meilleur résultat
 
-\section{Évaluation, optimisation et coût métier}
+\section{Évaluation, coût métier et optimisation}
 
 \subsection{Courbe ROC et aire sous la courbe (AUC)}
 
@@ -104,13 +106,12 @@ L'aire sous la courbe (AUC) nous donne une valeur numérique pour comparer ces m
 
 \begin{figure}[h]
     \begin{center}
-        \includegraphics[width=\textwidth]{./Figures/CurvesROCGridBest_base.pdf}
+        \includegraphics[width=.7\textwidth]{./Figures/CurvesROCGridBest_base.pdf}
     \end{center}
     \caption{Courbes ROC pour les deux modèles dont nous avons testé les hyperparamètres}
     \label{fig:ROCCurves}
 \end{figure}
 
-\newpage
 \subsection{Coût métier}
 
 Afin d'utiliser une méthode d'évaluation qui soit mathématiquement fondée nous nous sommes basé sur une métrique déjà existante du F-score.
@@ -148,6 +149,12 @@ Nous avons utilisé une valeur de β=2
     \label{fig:ConfMatrix}
 \end{figure}
 
+\subsection{Optimisation}
+
+L'optimisation a été effectuée par GridSearch. Pour chaque solution de rééquilibrage nous avons fait une GridSearch pour les deux modèles. Cependant pour la classification avec XGBoost nous avons testé une seul solution avec un nombre de boosting de 100.
+Pour LightGBM nous avons testé différents algorithmes : GBDT, DART, RF et GOSS et différents nombre de boosting : 100, 500 et 1000.
+Nous avons retenu comme meilleur modèle LightGBM avec un sur-échantillonage aléatoire (random over sampling). Les paramètres retenu sont l'algorithme DART et un nombre de boosting de 100
+
 \section{Interprétabilité}
 
 Dans un soucis de transparence nous souhaitons pouvoir expliquer comment fonctionnent nos modèles
@@ -158,17 +165,17 @@ L'étude des principales variables utilisées par le modèle permet de mieux com
 
 \begin{figure}[h]
     \begin{center}
-        \includegraphics[width=.7\textwidth]{./Figures/BestFeatGridF2_base.pdf}
+        \includegraphics[width=.9\textwidth]{./Figures/BestFeatGridF2_base.pdf}
     \end{center}
     \caption{Principales variables selon leur importance dans l'entrainement des modèles}
     \label{fig:BestFeat}
 \end{figure}
 
-La librairie SHAP nous permet d'observer la part des différentes variables dans la classification dans l'une ou l'autre des classes (Fig. \ref{fig:shapSummary}).
+Nous avons utilisé la librairie SHAP afin d'expliquer le modèle retenu (LightGBM). Celle-ci nous permet d'observer la part des différentes variables dans la classification dans l'une ou l'autre des classes (Fig. \ref{fig:shapSummary}).
 
 \begin{figure}[h]
     \begin{center}
-        \includegraphics[width=.55\textwidth]{./Figures/shapSummary.pdf}
+        \includegraphics[width=.5\textwidth]{./Figures/shapSummary.pdf}
     \end{center}
     \caption{Part des principales variables dans la classification}
     \label{fig:shapSummary}
@@ -180,8 +187,8 @@ La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variabl
 
 \begin{figure}[h]
     \begin{center}
-        \includegraphics[width=\textwidth]{./Figures/shapForce}
-        \includegraphics[width=.7\textwidth]{./Figures/shapWaterfall.pdf}
+        \includegraphics[width=.9\textwidth]{./Figures/shapForce}
+        \includegraphics[width=.6\textwidth]{./Figures/shapWaterfall.pdf}
     \end{center}
     \caption{Part des variables dans la classification d'un client}
     \label{fig:shapWaterfall}
@@ -189,9 +196,7 @@ La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variabl
 
 \section{Limites et améliorations}
 
-
-
-\section{Conclusion}
+Nous pourrions essayer d'optimiser plus d'hyperparamètres dans les différents modèles afin d'améliorer encore les résultats
 
 
 
