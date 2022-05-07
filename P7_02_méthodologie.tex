@@ -44,13 +44,13 @@
 \section{Introduction}
 
 L'entreprise Prêt à dépenser souhaite utiliser un outil de "scoring" afin de calculer la probabilité qu'un client fasse ou non défaut lors du remboursement de son crédit.
-Pour cela nous devons entrainer un modèle de classification sur des données variées (comportementales, autres institutions financières, etc).
+Pour cela nous devons entraîner un modèle de classification sur des données variées (comportementales, autres institutions financières, etc).
 
 \section{Classification}
-\subsection{Jeu de donées}
+\subsection{Jeu de données}
 
 Afin de mieux comprendre les données nous avons procédé à une analyse exploratoire des données sur le jeu application\_train.csv.
-Pour l'entrainement du modèle nous utiliserons uniquement ces données car l'utilisation des fichiers supplémentaires demande beaucoup de ressources tant en temps d'analyse et d'exploration des données qu'en capacitées de calculs.
+Pour l'entraînement du modèle nous utiliserons uniquement ces données car l'utilisation des fichiers supplémentaires demande beaucoup de ressources tant en temps d'analyse et d'exploration des données qu'en capacités de calculs.
 Nous utiliserons le fichier application\_test.csv pour le dashboard.
 
 \subsection{"Feature engeneering"}
@@ -78,23 +78,23 @@ Du fait d'un déséquilibre dans les valeurs cible il est difficile pour le mod�
     \label{fig:DéséquilibreCible}
 \end{figure}
 
-Lors de l'optimisation du score AUC le modèle va préférer classer tout les clients comme ne faisant pas défaut car cela amériorera sont score.
-Nous avons donc dû rééquilibrer la part des valeurs cible grace à la librairie imblearn.
+Lors de l'optimisation du score AUC le modèle va préférer classer tous les clients comme ne faisant pas défaut car cela améliorera son score.
+Nous avons donc dû rééquilibrer la part des valeurs cible grâce à la librairie imblearn.
 Cette librairie propose des outils de sur- et de sous-échantillonnage.
 
 Le sur-échantillonnage (over-sampling) permet d'augmenter le nombre de cibles faisant défaut.
-Soit en dédoublant aléatoirements des cibles faisant défaut (random over sampling).
+Soit en dédoublant aléatoirement des cibles faisant défaut (random over sampling).
 Soit en créant des données synthétiques (SMOTE) à partir de cibles voisines (KNN)
 
 Le sous-échantillonnage (under-sampling) permet de diminuer le nombre de cibles ne faisant pas défaut.
-Soit en échantillonant aléatoirement un nombre de cible ne faisant pas défaut égale au nombre de cible faisant défaut (random under sampling)
+Soit en échantillonnant aléatoirement un nombre de cible ne faisant pas défaut égale au nombre de cible faisant défaut (random under sampling)
 Soit en créant des données (Tomek links) à partir de groupe de cibles ne faisant pas défaut (KNN)
 
 Un mélange de sur- et de sous-échantillonnage avec SMOTEENN et SMOTETomek qui combinent les effets de SMOTE avec une réduction à partir des plus proches voisins
 
 \subsection{Modèles}
 
-Nous avons utilisé deux modèles XGBoost et LightGBM qui ont l'avantage d'être résistants au valeurs manquantes. Ces deux modèles reposent sur le boosting de gradient qui consiste en une agrégations d'arbres de décisions simples afin d'optenir un meilleur résultat
+Nous avons utilisé deux modèles XGBoost et LightGBM qui ont l'avantage d'être résistants aux valeurs manquantes. Ces deux modèles reposent sur le boosting de gradient qui consiste en une agrégation d'arbres de décisions simples afin d'obtenir un meilleur résultat
 
 \section{Évaluation, coût métier et optimisation}
 
@@ -116,7 +116,7 @@ L'aire sous la courbe (AUC) nous donne une valeur numérique pour comparer ces m
 
 Afin d'utiliser une méthode d'évaluation qui soit mathématiquement fondée nous nous sommes basé sur une métrique déjà existante du F-score.
 Ce score calcul la moyenne harmonique de la précision et du rappel (Fig. \ref{fig:ConfMatrix}).
-L'utilisation du $F_β$-score permet d'ajouter du poid respectivement au recall lorsque le facteur β est \num{>1} ou à la precision lorsque le facteur β est \num{<1}.
+L'utilisation du F\textsubscript{β}-score permet d'ajouter du poids respectivement au rappel lorsque le facteur β est \num{>1} ou à la précision lorsque le facteur β est \num{<1}.
 Nous avons utilisé une valeur de β=2
 
 \begin{figure}[h]
@@ -145,19 +145,19 @@ Nous avons utilisé une valeur de β=2
             \end{scope}
         \end{tikzpicture}
     \end{center}
-    \caption{Matrice de confusion rapellant ce que sont la précision et le rappel}
+    \caption{Matrice de confusion rappelant ce que sont la précision et le rappel}
     \label{fig:ConfMatrix}
 \end{figure}
 
 \subsection{Optimisation}
 
-L'optimisation a été effectuée par GridSearch. Pour chaque solution de rééquilibrage nous avons fait une GridSearch pour les deux modèles. Cependant pour la classification avec XGBoost nous avons testé une seul solution avec un nombre de boosting de 100.
+L'optimisation a été effectuée par GridSearch. Pour chaque solution de rééquilibrage nous avons fait une GridSearch pour les deux modèles. Pour la classification avec XGBoost nous avons testé trois solutions avec un nombre de boosting de 100, 500 ou 1000.
 Pour LightGBM nous avons testé différents algorithmes : GBDT, DART, RF et GOSS et différents nombre de boosting : 100, 500 et 1000.
-Nous avons retenu comme meilleur modèle LightGBM avec un sur-échantillonage aléatoire (random over sampling). Les paramètres retenu sont l'algorithme DART et un nombre de boosting de 100
+Nous avons retenu comme meilleur modèle LightGBM avec un sur-échantillonnage aléatoire (random over sampling). Les paramètres retenus sont l'algorithme DART et un nombre de boosting de 100
 
 \section{Interprétabilité}
 
-Dans un soucis de transparence nous souhaitons pouvoir expliquer comment fonctionnent nos modèles
+Dans un souci de transparence nous souhaitons pouvoir expliquer comment fonctionnent nos modèles
 
 \subsection{Globale}
 
@@ -167,7 +167,7 @@ L'étude des principales variables utilisées par le modèle permet de mieux com
     \begin{center}
         \includegraphics[width=.9\textwidth]{./Figures/BestFeatGridF2_base.pdf}
     \end{center}
-    \caption{Principales variables selon leur importance dans l'entrainement des modèles}
+    \caption{Principales variables selon leur importance dans l'entraînement des modèles}
     \label{fig:BestFeat}
 \end{figure}
 
