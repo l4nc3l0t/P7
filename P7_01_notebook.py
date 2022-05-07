@@ -73,7 +73,8 @@ fig = px.bar(
        app_train.isna().sum()[app_train.isna().sum() != 0].sort_values().values
        ) / app_train.shape[0] * 100,
     labels=dict(x='Indicateurs', y='Pourcentage de données'),
-    title='Pourcentage de données par colonnes comportant des données manquantes',
+    title=
+    'Pourcentage de données par colonnes comportant des données manquantes',
     height=550,
     width=1100)
 fig.show(renderer='notebook')
@@ -440,6 +441,7 @@ fig = go.Figure()
 fig.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
 
 for samp in [
+        None,
         RandomUnderSampler(random_state=0),
         TomekLinks(n_jobs=-1),
         RandomOverSampler(random_state=0),
@@ -458,7 +460,7 @@ for samp in [
     print('Accuracy : {}'.format(round(log_reg_samp.score(X_test, y_test), 2)))
 
     fpr, tpr, thresholds = roc_curve(y_test, log_reg_samp_proba[:, 1])
-    name = '{} (AUC={})'.format(
+    name = '{}<br>(AUC={})'.format(
         str(samp).split('(')[0], round(auc(fpr, tpr), 4))
     fig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines'))
 
@@ -564,14 +566,10 @@ def GridPlot(classifier,
             grid.cv_results_['mean_test_F2'][grid.best_index_]))
 
         fpr, tpr, thresholds = roc_curve(y_test, grid_proba[:, 1])
-        name = '{} - {}<br>(AUC={})'.format(
-            ''.join([
-                c for c in str(grid.best_params_['classifier']).split('(')[0]
-                if c.isupper()
-            ]), ''.join([
-                c for c in str(grid.best_params_['sampling']).split('(')[0]
-                if c.isupper()
-            ]), round(auc(fpr, tpr), 4))
+        name = '{} +<br>{}<br>(AUC={})'.format(
+            str(grid.best_params_['classifier']).split('(')[0],
+            str(grid.best_params_['sampling']).split('(')[0],
+            round(auc(fpr, tpr), 4))
         Rocfig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines'))
 
         RocCurve = pd.concat([
@@ -719,8 +717,10 @@ classifier = Pipeline([('sampling', 'passthrough'),
 
 sampler = [
     RandomUnderSampler(random_state=0),
+    TomekLinks(n_jobs=-1),
     RandomOverSampler(random_state=0),
     SMOTE(random_state=0, n_jobs=-1),
+    SMOTEENN(random_state=0, n_jobs=-1),
     SMOTETomek(random_state=0, n_jobs=-1)
 ]
 
@@ -734,7 +734,8 @@ param_grid = [{
                       eval_metric='auc',
                       use_label_encoder=False,
                       random_state=0)
-    ]
+    ],
+    'classifier__n_estimators': [100, 500, 1000]
 }, {
     'sampling':
     sampler,
@@ -853,7 +854,8 @@ param_grid = [{
                       eval_metric='auc',
                       use_label_encoder=False,
                       random_state=0)
-    ]
+    ],
+    'classifier__n_estimators': [100, 500, 1000]
 }, {
     'sampling': [sampler[1]],
     'classifier': [
@@ -902,14 +904,6 @@ fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/BestFeatGridF2_base.pdf')
 
-# %%
-if write_data is True:
-    app_train[ImpFeatF2_base[(ImpFeatF2_base.value != 0) & (
-        ImpFeatF2_base.Modèle == 'LGBMC/ROS_base')].Feature.to_list()].sample(
-            200000, random_state=0).to_csv('TrainSet.csv')
-    app_test[ImpFeatF2_base[(ImpFeatF2_base.value != 0)
-                            & (ImpFeatF2_base.Modèle == 'LGBMC/ROS_base')].
-             Feature.to_list()].to_csv('TestSet.csv')
 # %%
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaler.fit(app_train.drop(columns='TARGET'))
