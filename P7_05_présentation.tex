@@ -95,9 +95,9 @@
     \begin{itemize}
         \item Objectifs
               \begin{itemize}
-                  \item mettre en œuvre un outil de “scoring crédit” pour calculer la probabilité qu’un client rembourse son crédit
+                  \item Mettre en œuvre un outil de “scoring crédit” pour calculer la probabilité qu’un client rembourse son crédit
                   \item[]
-                  \item classifier la demande en crédit accordé ou refusé
+                  \item Classifier la demande en crédit accordé ou refusé
                         \begin{itemize}
                             \item développer un algorithme de classification en s’appuyant sur des sources de données variées (données comportementales, données provenant d'autres institutions financières, etc.)
                         \end{itemize}
@@ -139,7 +139,7 @@
                 \item Encodage des variables catégorielles
                       \begin{itemize}
                           \item par LabelEncoder pour les variables ayant 2 catégories
-                          \item par pandas.get\_dummies() pour les varibles ayant plus de 2 catégories
+                          \item par pandas.get\_dummies() pour les variables ayant plus de 2 catégories
                       \end{itemize}
             \end{itemize}
         \end{column}
@@ -176,7 +176,7 @@
         \end{column}
     \end{columns}
     \begin{itemize}
-        \item Les données EXT\_SOURCE semblent aussi avoir une certaines corrélation avec le fait que le client fasse défaut
+        \item Les données EXT\_SOURCE semblent aussi avoir une certaine corrélation avec le fait que le client fasse défaut
     \end{itemize}
 \end{frame}
 
@@ -184,9 +184,11 @@
     \begin{columns}
         \begin{column}{.5\textwidth}
             \begin{itemize}
-                \item Comme on a pu le voir les données sont déséqulibrées du fait que les clients faisant défauts sont peu nombreux par rapport à ceux ne faisant pas défaut
-                \item Classer tous les clients comme ne faisant pas défaut permettrait d'avoir un score honnorable avec seulement 8\% d'erreurs
-                \item Nous avons donc utilisé la librairie imblearn qui permet de rééchantillonner notre jeu de données
+                \item Données sont déséquilibrées : clients faisant défauts peu nombreux par rapport à ceux ne faisant pas défaut
+                \item[]
+                \item Classer tous les clients comme ne faisant pas défaut \\$\Longrightarrow$ score honorable avec seulement 8\% d'erreurs
+                \item[]
+                \item Utilisation de la librairie imblearn $\Longrightarrow$ rééchantillonnage de  notre jeu de données
             \end{itemize}
         \end{column}
         \begin{column}{.5\textwidth}
@@ -197,30 +199,44 @@
 
 \subsection{Rééchantillonnage du jeux de données}
 \begin{frame}{\insertsection}{\insertsubsection}
+    Réalisation d'une régression logistique pour essayer les différentes méthodes de rééchantillonnage
     \begin{columns}
         \begin{column}{.5\textwidth}
             \begin{itemize}
-                \item Pour essayer les différentes méthodes de rééchantillonnage nous avons réaliser une régression logistique sur les données rééchantiollonnées avec les différents outils
+                \item Méthodes de sous-échantillonnages :
                       \begin{itemize}
-                          \item RandomUnderSampler et TomekLinks : méthodes de sous-échantillonnages
-                                \begin{itemize}
-                                    \item on conserve le même nombre de clients ne faisant pas défaut que de client faisant défaut
-                                    \item RandomUnderSampler choisi ces dernier au hasard
-                                    \item TomekLinks conserve un certains nombre de clients par groupe de clients similaire (repose sur les KNN)
-                                \end{itemize}
-                          \item RandomOverSampler et SMOTE : méthodes de sur-échantillonnages
-                                \begin{itemize}
-                                    \item on multiplie le nombre de clients faisant défaut
-                                    \item RandomOverSampler dédouble des clients faisant défaut au hasard
-                                    \item SMOTE créé de nouveaux clients à partir de groupe de clients similaires
-                                \end{itemize}
-                          \item SMOTEENN et SMOTETomek sont des méthodes combinant le sur- et le sous-échantillonnage
+                          \item On réduit le nombre de clients ne faisant pas défaut pour en avoir autant que de client faisant défaut
+                          \item[]
+                          \item RandomUnderSampler choisi ces derniers au hasard
+                          \item[]
+                          \item TomekLinks conserve un certain nombre de clients par groupe de clients similaire (repose sur les KNN)
+                          \item[]
                       \end{itemize}
-                \item Les scores AUC semblent plutôt bon (\num{>0.7})
             \end{itemize}
         \end{column}
         \begin{column}{.5\textwidth}
-            \includegraphics[width=\textwidth]{CurvesROClogreg.pdf}
+            \begin{itemize}
+                \item Méthodes de sur-échantillonnages :
+                      \begin{itemize}
+                          \item On multiplie le nombre de clients faisant défaut pour en avoir autant que des clients ne faisant pas défaut
+                          \item[]
+                          \item RandomOverSampler dédouble des clients faisant défaut au hasard
+                          \item[]
+                          \item SMOTE créé de nouveaux clients à partir de groupe de clients similaires
+                          \item[]
+                      \end{itemize}
+            \end{itemize}
+        \end{column}
+    \end{columns}
+    \begin{columns}
+        \begin{column}{.5\textwidth}
+            \begin{itemize}
+                \item Méthodes combinant le sur- et le sous-échantillonnage
+                      \begin{itemize}
+                          \item SMOTEENN
+                          \item SMOTETomek
+                      \end{itemize}
+            \end{itemize}
         \end{column}
     \end{columns}
 \end{frame}
@@ -228,59 +244,65 @@
 \begin{frame}{\insertsection}{\insertsubsection}
     \vspace{2pt}
     \begin{columns}
-        \begin{column}{.3\textwidth}
+        \begin{column}{.25\textwidth}
+            {\makegapedcells
+                \begin{tabular}{cc|cc}
+                    \multicolumn{2}{c}{}
+                     & \multicolumn{2}{c}{Prédit}           \\
+                     &                            & 0  & 1  \\
+                    \cline{2-4}
+                    \multirow{2}{*}{\rotatebox[origin=c]{90}{Réel}}
+                     & 0                          & TN & FP \\
+                     & 1                          & FN & TP \\
+                    \cline{2-4}
+                \end{tabular}}
+
+            \vspace{15pt}
+
+            \includegraphics[width=\textwidth]{CMNone.pdf}
+        \end{column}
+        \begin{column}{.25\textwidth}
             \includegraphics[width=\textwidth]{CMRandomUnderSampler.pdf}
+            \includegraphics[width=\textwidth]{CMTomekLinks.pdf}
+        \end{column}
+        \begin{column}{.25\textwidth}
+            \includegraphics[width=\textwidth]{CMRandomOverSampler.pdf}
             \includegraphics[width=\textwidth]{CMSMOTE.pdf}
         \end{column}
-        \begin{column}{.3\textwidth}
-            \includegraphics[width=\textwidth]{CMRandomOverSampler.pdf}
+        \begin{column}{.25\textwidth}
             \includegraphics[width=\textwidth]{CMSMOTETomek.pdf}
-        \end{column}
-        \begin{column}{.3\textwidth}
-            \includegraphics[width=\textwidth]{CMTomekLinks.pdf}
             \includegraphics[width=\textwidth]{CMSMOTEENN.pdf}
         \end{column}
     \end{columns}
     \small
     \begin{itemize}
-        \item Les 2 cas de droites ne sont pas intéressant car le premier classe tout les clients comme ne faisant pas défaut et le second classe 50/50
+        \item TomekLinks n'est pas plus efficace que sans rééchantillonnage
+        \item SMOTEENN fait un grand nombre de faux positifs
+        \item SMOTEENN a le plus grand nombre de vrais positifs (TP)
     \end{itemize}
-\end{frame}
-
-\subsection{Création de variables polynomiales}
-\begin{frame}{\insertsection}{\insertsubsection}
-    \vspace{2pt}
-    \begin{columns}
-        \begin{column}{.5\textwidth}
-            \begin{itemize}
-                \item Afin d'améliorer les scores des modèles nous avons essayé de créer des variables polynomiales à partir des colonnes les plus corrélées avec la cible
-                \item[]
-                \item L'amélioration n'est pas pertinente nous n'avons donc pas conservé ces variables pour notre modèle final
-            \end{itemize}
-        \end{column}
-        \begin{column}{.5\textwidth}
-            \includegraphics[width=\textwidth]{ScoresGridFull.pdf}
-        \end{column}
-    \end{columns}
 \end{frame}
 
 \section{Optimisation du modèle}
 \subsection{GridSearch}
 \begin{frame}{\insertsection}{\insertsubsection}
     \begin{itemize}
-        \item[] Pour chaque solution de rééquilibrage retenues :
-        \begin{itemize}
-            \item[] RandomOverSampler, RandomUnderSampler, SMOTE, SMOTETomek
-            \item[] \LARGE $\Downarrow$
-        \end{itemize} 
+        \item[] Pour chaque solution de rééquilibrage :
+            \begin{itemize}
+                \item[] RandomOverSampler, SMOTE, RandomUnderSampler, TomekLinks, SMOTEENN, SMOTETomek
+                \item[] \LARGE $\Downarrow$
+            \end{itemize}
         \item[] GridSearch pour les deux modèles :
-        \begin{itemize}
-            \item[] XGBoost Classifier, LightGBM Classifier
-            \item[] \LARGE $\Downarrow$
-        \end{itemize}
+            \begin{itemize}
+                \item[] XGBoost Classifier, LightGBM Classifier
+                \item[] \LARGE $\Downarrow$
+            \end{itemize}
         \item[] Nous retenons le meilleur résultat pour un couple : solution de rééquilibrage/modèle
         \item[]
-        \item[] Nous avons fait différents essais d'optimisation avec plusieurs métriques
+        \item[] Nous avons fait différents essais d'optimisation
+            \begin{itemize}
+                \item 1\ier{} essai avec optimisation de l'AUC
+                \item 2\nd{} essai avec optimisation de la métrique métier (F\textsubscript{β}-score)
+            \end{itemize}
     \end{itemize}
 \end{frame}
 
@@ -290,7 +312,9 @@
         \begin{column}{.5\textwidth}
             \begin{itemize}
                 \item La courbe ROC représente les vrais positifs en fonction des faux positifs
+                \item[]
                 \item Plus la courbe est proche du coin supérieur gauche meilleur est le modèle
+                \item[]
                 \item L'aire sous la courbe (AUC) nous donne une valeur numérique pour comparer ces modèles
             \end{itemize}
         \end{column}
@@ -307,14 +331,31 @@
             \begin{itemize}
                 \item Accuracy : précision de la classification (somme des éléments bien classé sur le nombre total d'éléments)
                 \item AUC : Area Under the Curve, aire sous la courbe ROC
-                \item Precision : part de vrai positifs dans les prédictions positives
-                \item Recall : part de vrai positifs dans les éléments vraiments positifs
+                \item Precision : part de vrais positifs dans les prédictions positives
+                \item Recall : part de vrais positifs dans les éléments réellement positifs
                 \item F1 : moyenne harmonique de la précision et du rappel
-                \item F2 : idem F1 avec un facteur β=2, permettant de mettre plus de poid sur le rappel
+                \item F2 : idem F1 avec un facteur β=2, permettant de mettre plus de poids sur le rappel
             \end{itemize}
         \end{column}
         \begin{column}{.5\textwidth}
             \includegraphics[width=\textwidth]{ScoresGrid_base.pdf}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\subsection{Création de variables polynomiales}
+\begin{frame}{\insertsection}{\insertsubsection}
+    \vspace{2pt}
+    \begin{columns}
+        \begin{column}{.5\textwidth}
+            \begin{itemize}
+                \item Afin d'améliorer les scores des modèles nous avons essayé de créer des variables polynomiales à partir des colonnes les plus corrélées avec la cible
+                \item[]
+                \item L'amélioration n'est pas pertinente nous n'avons donc pas conservé ces variables pour notre modèle final
+            \end{itemize}
+        \end{column}
+        \begin{column}{.5\textwidth}
+            \includegraphics[width=\textwidth]{ScoresGridFull.pdf}
         \end{column}
     \end{columns}
 \end{frame}
@@ -362,7 +403,7 @@
             \begin{itemize}
                 \item Outil
                       \begin{itemize}
-                          \item Utilisation du $F_β$-score qui permet d'ajouter du poid respectivement au recall lorsque le facteur β est \num{>1} ou à la precision lorsque le facteur β est \num{<1}
+                          \item Utilisation du $F_β$-score qui permet d'ajouter du poids respectivement au rappel lorsque le facteur β est \num{>1} ou à la précision lorsque le facteur β est \num{<1}
                           \item Utilisation de β=2
                       \end{itemize}
             \end{itemize}
@@ -373,13 +414,51 @@
     \end{columns}
 \end{frame}
 
+\section{Explication du modèle}
+\subsection{Importance des variables}
+\begin{frame}{\insertsection}{\insertsubsection}
+    \begin{columns}
+        \begin{column}{.5\textwidth}
+            \begin{itemize}
+                \item Les modèles nous rendent comptent de la part des variables dans leurs résultats
+                \item[]
+                \item[] Les variables EXT\_SOURCE se retrouve dans les deux cas par exemple
+            \end{itemize}
+        \end{column}
+        \begin{column}{.5\textwidth}
+            \includegraphics[width=\textwidth]{BestFeatGrid_base.pdf}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\subsection{Utilisation de SHAP}
+\begin{frame}{\insertsection}{\insertsubsection}
+    \begin{itemize}
+        \item La librairie SHAP permet d'expliquer le fonctionnement du modèle de manière plus poussée.
+        \item Exemples sur le modèle LightGBM :
+    \end{itemize}
+    \begin{columns}[t]
+        \begin{column}{.5\textwidth}
+            Fonctionnement global du modèle $\Longrightarrow$ part des variables utilisées lors du classement en général
+            \includegraphics[width=.9\textwidth]{shapSummary.pdf}
+        \end{column}
+        \begin{column}{.5\textwidth}
+            Fonctionnement local du modèle $\Longrightarrow$ part des variables utilisées lors du classement d'un élément particulier
+            \includegraphics[width=\textwidth]{shapForce.pdf}
+            \includegraphics[width=.8\textwidth]{shapWaterfall.pdf}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
 \section{Déploiement sur le cloud}
 \subsection{API}
 \begin{frame}[fragile]{\insertsection}{\insertsubsection}
     \begin{itemize}
         \item Utilisation de Flask
         \item Entrainement du modèle et prédictions
-        \item Une URL pour chaque type de données avec une ou plusieurs clé permettant des requêtes sur des clients ou des valeurs particulières
+        \item Une URL pour chaque type de données avec une ou plusieurs clés permettant des requêtes sur des clients ou des valeurs particulières
         \item Exemple pour les données des clients pour lesquelles on renseigne l'id du client : \url{http://localhost:5000/ID_clients/infos_client?id=<identifiant>}
         \item[]
     \end{itemize}
@@ -397,8 +476,8 @@ def show_data():
 \begin{frame}[fragile]{\insertsection}{\insertsubsection}
     \begin{itemize}
         \item Utilisation de Dashboard
-        \item Requêtes à l'API afin d'optenir les données au format JSON
-        \item Exemple pour une requête consernant les données d'un client :
+        \item Requêtes à l'API afin d'obtenir les données au format JSON
+        \item Exemple pour une requête concernant les données d'un client :
         \item[]
     \end{itemize}
     \begin{minted}{python}
@@ -432,20 +511,21 @@ def get_client_infos(idclient):
     \end{columns}
 \end{frame}
 
-\section{Conclusion}
-\begin{frame}{\insertsection}
-    \begin{itemize}
-        \item Utilisation de données déséqulibrées
-        \item[]
-        \item Optimisation des modèle à l'aide d'une GridSearch
-        \item[]
-        \item Utilisation d'une métrique plus particulière afin d'optimiser le modèle en fonction des attentes du métier
-        \item[]
-        \item Il aurait pû être intéressant d'optimiser plus d'hyperparamètres afin d'améliorer un peu plus nos résultats
-        \item[]
-        \item Le déploiement dans le cloud permet un accès rapide à ces données concernant les clients et les prédictions qu'ils fassent ou non défaut 
-        \item[]
-        \item Ces données sont accompagnées de graphiques permettant de comparer ces clients avec d'autres clients similaires ou à l'ensemble des clients
-    \end{itemize}
-\end{frame}
+% \section{Conclusion}
+% \begin{frame}{\insertsection}
+%     \begin{itemize}
+%         \item Utilisation de données déséquilibrées
+%         \item[]
+%         \item Optimisation des modèles à l'aide d'une GridSearch
+%         \item[]
+%         \item Utilisation d'une métrique plus particulière afin d'optimiser le modèle en fonction des attentes du métier
+%         \item[]
+%         \item Il aurait pu être intéressant d'optimiser plus d'hyperparamètres afin d'améliorer un peu plus nos résultats
+%         \item[]
+%         \item Le déploiement dans le cloud permet un accès rapide à ces données concernant les clients et les prédictions qu'ils fassent ou non défaut
+%         \item[]
+%         \item Ces données sont accompagnées de graphiques permettant de comparer ces clients avec d'autres clients similaires ou à l'ensemble des clients
+%     \end{itemize}
+% \end{frame}
+
 \end{document}
