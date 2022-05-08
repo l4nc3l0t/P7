@@ -285,25 +285,28 @@
 \section{Optimisation du modèle}
 \subsection{GridSearch}
 \begin{frame}{\insertsection}{\insertsubsection}
-    \begin{itemize}
-        \item[] Pour chaque solution de rééquilibrage :
+    \begin{columns}
+        \begin{column}{.6\textwidth}
+            \tikz [rounded corners, every node/.style={anchor=west}, level sep = 5mm, >={Stealth}]
+            \graph [layered layout, grow=right, nodes={draw, font=\footnotesize}, head anchor=west, tail anchor=east,
+            edges=rounded corners, sibling distance=5mm]{
+            Data -> {RandomUnderSampler, TomekLinks, SOMTEEN, SMOTETomek, SMOTE, RandomOverSamplere} -- train test split -> {XGBoost Classifier, LightGBM Classifier},
+            Rééchantillonnage [draw] // {RandomUnderSampler, TomekLinks, SOMTEEN, SMOTETomek, SMOTE, RandomOverSamplere, "train test split"},
+            GridSearch  [draw]  // {XGBoost Classifier, LightGBM Classifier}
+            };
+        \end{column}
+        \begin{column}{.4\textwidth}
             \begin{itemize}
-                \item[] RandomOverSampler, SMOTE, RandomUnderSampler, TomekLinks, SMOTEENN, SMOTETomek
-                \item[] \LARGE $\Downarrow$
+                \item[] Nous retenons le meilleur résultat pour un couple : solution de rééquilibrage/modèle
+                \item[]
+                \item[] Nous avons fait différents essais d'optimisation
+                    \begin{itemize}
+                        \item 1\ier{} essai avec optimisation de l'AUC
+                        \item 2\nd{} essai avec optimisation de la métrique métier (F\textsubscript{β}-score)
+                    \end{itemize}
             \end{itemize}
-        \item[] GridSearch pour les deux modèles :
-            \begin{itemize}
-                \item[] XGBoost Classifier, LightGBM Classifier
-                \item[] \LARGE $\Downarrow$
-            \end{itemize}
-        \item[] Nous retenons le meilleur résultat pour un couple : solution de rééquilibrage/modèle
-        \item[]
-        \item[] Nous avons fait différents essais d'optimisation
-            \begin{itemize}
-                \item 1\ier{} essai avec optimisation de l'AUC
-                \item 2\nd{} essai avec optimisation de la métrique métier (F\textsubscript{β}-score)
-            \end{itemize}
-    \end{itemize}
+        \end{column}
+    \end{columns}
 \end{frame}
 
 \subsection{Courbe ROC}
@@ -403,7 +406,7 @@
             \begin{itemize}
                 \item Outil
                       \begin{itemize}
-                          \item Utilisation du $F_β$-score qui permet d'ajouter du poids respectivement au rappel lorsque le facteur β est \num{>1} ou à la précision lorsque le facteur β est \num{<1}
+                          \item Utilisation du F\textsubscript{β}-score qui permet d'ajouter du poids respectivement au rappel lorsque le facteur β est \num{>1} ou à la précision lorsque le facteur β est \num{<1}
                           \item Utilisation de β=2
                       \end{itemize}
             \end{itemize}
