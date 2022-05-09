@@ -765,6 +765,19 @@ fig = px.bar(
     color='Modèle',
     barmode='group',
     title='Scores pour les différents modèles<br>sans polynomial features')
+legendnames = {
+    'XGBC/RUS_base':
+    'XGBoost Classifier +<br>RandomUnderSampler +<br>données de base',
+    'XGBC/RUS_featEng':
+    'XGBoost Classifier +<br>RandomUnderSampler +<br>feature engineering',
+    'LGBMC/ROS_base': 'LightGBM +<br>RandomOverSampler +<br>données de base',
+    'LGBMC/ROS_featEng':
+    'LightGBM +<br>RandomOverSampler +<br>feature engineering'
+}
+fig.for_each_trace(lambda t: t.update(name=legendnames[t.name],
+                                      legendgroup=legendnames[t.name],
+                                      hovertemplate=t.hovertemplate.replace(
+                                          t.name, legendnames[t.name])))
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGrid_base.pdf')
@@ -802,6 +815,10 @@ fig = px.bar(
     color='Modèle',
     barmode='group',
     title='Scores pour les différents modèles<br>avec polynomial features')
+fig.for_each_trace(lambda t: t.update(name=legendnames[t.name],
+                                      legendgroup=legendnames[t.name],
+                                      hovertemplate=t.hovertemplate.replace(
+                                          t.name, legendnames[t.name])))
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGrid_FE.pdf')
@@ -832,6 +849,10 @@ fig = px.bar(ScoresFull,
              color='Modèle',
              barmode='group',
              title='Scores pour les différents modèles')
+fig.for_each_trace(lambda t: t.update(name=legendnames[t.name],
+                                      legendgroup=legendnames[t.name],
+                                      hovertemplate=t.hovertemplate.replace(
+                                          t.name, legendnames[t.name])))
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGridFull.pdf')
@@ -883,7 +904,11 @@ fig = px.bar(ScoresF2M_base,
              y='value',
              color='Modèle',
              barmode='group',
-             title='Scores')
+             title='Scores pour les différents modèles<br>avec optimisation du F-score')
+fig.for_each_trace(lambda t: t.update(name=legendnames[t.name],
+                                      legendgroup=legendnames[t.name],
+                                      hovertemplate=t.hovertemplate.replace(
+                                          t.name, legendnames[t.name])))
 fig.show(renderer='notebook')
 if write_data is True:
     fig.write_image('./Figures/ScoresGridF2_base.pdf')
