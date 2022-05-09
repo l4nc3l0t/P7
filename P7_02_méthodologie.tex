@@ -117,7 +117,9 @@ L'aire sous la courbe (AUC) nous donne une valeur numérique pour comparer ces m
 Afin d'utiliser une méthode d'évaluation qui soit mathématiquement fondée nous nous sommes basé sur une métrique déjà existante du F-score.
 Ce score calcul la moyenne harmonique de la précision et du rappel (Fig. \ref{fig:ConfMatrix}).
 L'utilisation du F\textsubscript{β}-score permet d'ajouter du poids respectivement au rappel lorsque le facteur β est \num{>1} ou à la précision lorsque le facteur β est \num{<1}.
-Nous avons utilisé une valeur de β=2
+Nous avons utilisé une valeur de β=2.
+Cette métrique permet de réduire les faux négatifs qui sont très couteux pour la société. Tandis qu'il est moins couteux d'avoir des faux positifs car ce seront des clients à qui l'ont ne prêtera pas même si ils pouvaient potentiellement rembourser leur crédit.
+Tant que le nombre de client est important ce n'est pas un soucis car il y aura toujours d'autres clients à qui prêter.
 
 \begin{figure}[h]
     \begin{center}
@@ -161,7 +163,9 @@ Dans un souci de transparence nous souhaitons pouvoir expliquer comment fonction
 
 \subsection{Globale}
 
-L'étude des principales variables utilisées par le modèle permet de mieux comprendre son fonctionnement global (Fig. \ref{fig:BestFeat})
+L'étude des principales variables utilisées par le modèle permet de mieux comprendre son fonctionnement global.
+Nous pouvons observer sur cette figure les différentes variables et leur importance dans les calculs des modèles (Fig. \ref{fig:BestFeat}).
+Cela nous renseigne sur les données qui sont les plus prises en compte lors de la classification des clients.
 
 \begin{figure}[h]
     \begin{center}
@@ -183,7 +187,8 @@ Nous avons utilisé la librairie SHAP afin d'expliquer le modèle retenu (LightG
 
 \subsection{Locale}
 
-La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variables dans le classement d'un client en particulier (Fig. \ref{fig:shapWaterfall}).
+La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variables dans le classement d'un client en particulier.
+Nous pouvons observer sur ces figure la part de chaque variables dans la prédiction de la classification d'un client (Fig. \ref{fig:shapWaterfall}).
 
 \begin{figure}[h]
     \begin{center}
@@ -196,8 +201,10 @@ La librairie SHAP nous permet d'en apprendre un peu plus sur la part des variabl
 
 \section{Limites et améliorations}
 
-Nous pourrions essayer d'optimiser plus d'hyperparamètres dans les différents modèles afin d'améliorer encore les résultats
-
+Il peut être intéressant d'intégrer quelques données concernant les autres fichiers.
+Cela demandera un travail plus important au niveau du nettoyage et de la selection des données mais peut nous apporter des précisions concernant les clients. 
+Nous pourrions essayer d'optimiser plus d'hyperparamètres dans les différents modèles afin d'améliorer encore les résultats.
+Il convient de rester prudent quand à l'utilisation de ces prédictions qui sont issus d'un modèle et ne reflètent pas forcement la réalitée. Celles-ci doivent rester un outil d'aide quant à la prise de décision finale.
 
 
 \end{document}
