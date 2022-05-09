@@ -425,7 +425,7 @@
             \begin{itemize}
                 \item Les modèles nous rendent comptent de la part des variables dans leurs résultats
                 \item[]
-                \item[] Les variables EXT\_SOURCE se retrouve dans les deux cas par exemple
+                \item Les variables EXT\_SOURCE se retrouvent dans les deux cas par exemple
             \end{itemize}
         \end{column}
         \begin{column}{.5\textwidth}
@@ -438,7 +438,8 @@
 \subsection{Utilisation de SHAP}
 \begin{frame}{\insertsection}{\insertsubsection}
     \begin{itemize}
-        \item La librairie SHAP permet d'expliquer le fonctionnement du modèle de manière plus poussée.
+        \item La librairie SHAP permet d'expliquer le fonctionnement du modèle de manière plus poussée
+        \item Indépendante du modèle : explique des modèles qui ne rendent pas compte de l'importance des variables
         \item Exemples sur le modèle LightGBM :
     \end{itemize}
     \begin{columns}[t]
@@ -448,7 +449,7 @@
         \end{column}
         \begin{column}{.5\textwidth}
             Fonctionnement local du modèle $\Longrightarrow$ part des variables utilisées lors du classement d'un élément particulier
-            \includegraphics[width=\textwidth]{shapForce.pdf}
+            \includegraphics[width=.8\textwidth]{shapForce.pdf}
             \includegraphics[width=.8\textwidth]{shapWaterfall.pdf}
         \end{column}
     \end{columns}
